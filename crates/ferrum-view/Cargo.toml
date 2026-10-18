@@ -1,0 +1,13 @@
+[package]
+name = "ferrum-view"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Surface-agnostic view abstractions, decorations, and viewport calculations for the Ferrum editor engine"
+
+[dependencies]
+ferrum-state = { path = "../ferrum-state" }
+smallvec = { workspace = true }
+thiserror = { workspace = true }

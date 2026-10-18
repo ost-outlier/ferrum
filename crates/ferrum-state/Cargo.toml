@@ -1,0 +1,14 @@
+[package]
+name = "ferrum-state"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Core editor state, transaction pipeline, and Facet extension system for the Ferrum editor engine"
+
+[dependencies]
+ropey = { workspace = true }
+smallvec = { workspace = true }
+parking_lot = { workspace = true }
+thiserror = { workspace = true }

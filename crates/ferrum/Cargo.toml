@@ -1,0 +1,18 @@
+[package]
+name = "ferrum"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Embeddable, high-performance, modular text editor engine in Rust"
+
+[dependencies]
+ferrum-state = { path = "../ferrum-state" }
+ferrum-commands = { path = "../ferrum-commands", optional = true }
+ferrum-view = { path = "../ferrum-view", optional = true }
+
+[features]
+default = ["commands", "view"]
+commands = ["dep:ferrum-commands"]
+view = ["dep:ferrum-view"]

@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/ferrum-state",
+    "crates/ferrum-commands",
+    "crates/ferrum-view",
+    "crates/ferrum",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Ferrum Authors"]
+license = "MIT"
+repository = "https://github.com/ferrum-editor/ferrum"
+
+[workspace.dependencies]
+ropey = "1.6"
+smallvec = "1.13"
+parking_lot = "0.12"
+thiserror = "2.0"

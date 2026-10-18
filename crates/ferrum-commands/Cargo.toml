@@ -1,0 +1,12 @@
+[package]
+name = "ferrum-commands"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Pure text editing commands and operations for the Ferrum editor engine"
+
+[dependencies]
+ferrum-state = { path = "../ferrum-state" }
+smallvec = { workspace = true }
