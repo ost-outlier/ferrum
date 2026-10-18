@@ -65,6 +65,50 @@ impl SelectionRange {
         self.goal_column = col;
         self
     }
+
+    /// Maps this selection range through a `ChangeDesc`.
+    pub fn map(&self, change: &crate::change::ChangeDesc, assoc: i8) -> Self {
+        let (anchor, head) = if self.is_empty() {
+            let pos = change
+                .map_pos(self.from(), assoc, crate::change::MapMode::Simple)
+                .unwrap_or(self.from());
+            (pos, pos)
+        } else {
+            let from = change
+                .map_pos(self.from(), 1, crate::change::MapMode::Simple)
+                .unwrap_or(self.from());
+            let to = change
+                .map_pos(self.to(), -1, crate::change::MapMode::Simple)
+                .unwrap_or(self.to());
+            if self.is_inverted() {
+                (to, from)
+            } else {
+                (from, to)
+            }
+        };
+        Self {
+            anchor,
+            head,
+            goal_column: self.goal_column,
+            assoc: self.assoc,
+        }
+    }
+
+    /// Extends this range to cover at least `from` to `to`.
+    pub fn extend(&self, from: usize, to: usize) -> Self {
+        if from <= self.anchor && to >= self.anchor {
+            Self::new(from, to)
+        } else {
+            let head = if (from as isize - self.anchor as isize).abs()
+                > (to as isize - self.anchor as isize).abs()
+            {
+                from
+            } else {
+                to
+            };
+            Self::new(self.anchor, head)
+        }
+    }
 }
 
 /// An immutable collection of selection ranges, with one designated as the primary selection.
@@ -181,4 +225,14 @@ impl EditorSelection {
     pub fn is_single(&self) -> bool {
         self.ranges.len() == 1
     }
+
+    /// Maps all ranges through a `ChangeDesc`, re-sorting and merging if necessary.
+    pub fn map(&self, change: &crate::change::ChangeDesc, assoc: i8) -> Self {
+        if change.is_empty() {
+            return self.clone();
+        }
+        let mapped: Vec<SelectionRange> = self.ranges.iter().map(|r| r.map(change, assoc)).collect();
+        Self::create(mapped, self.main_index)
+    }
 }
+

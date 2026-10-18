@@ -10,3 +10,4 @@ description = "Pure text editing commands and operations for the Ferrum editor e
 [dependencies]
 ferrum-state = { path = "../ferrum-state" }
 smallvec = { workspace = true }
+unicode-segmentation = { workspace = true }

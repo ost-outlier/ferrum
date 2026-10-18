@@ -1,4 +1,4 @@
-use crate::change::{ChangeSet, ChangeSpec};
+use crate::change::{ChangeSet, ChangeSpec, Changes};
 use crate::facet::{CompartmentId, Extension, Facet};
 use crate::selection::EditorSelection;
 use crate::state::EditorState;
@@ -11,6 +11,14 @@ use std::sync::Arc;
 pub struct StateEffect {
     pub(crate) type_id: TypeId,
     pub(crate) value: Arc<dyn Any + Send + Sync>,
+}
+
+impl std::fmt::Debug for StateEffect {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StateEffect")
+            .field("type_id", &self.type_id)
+            .finish()
+    }
 }
 
 impl StateEffect {
@@ -58,7 +66,7 @@ impl crate::facet::Compartment {
 #[derive(Default, Clone)]
 pub struct TransactionSpec {
     /// Changes to be applied to the document.
-    pub changes: Option<ChangeSet>,
+    pub changes: Option<Changes>,
     /// New selection to be set.
     pub selection: Option<EditorSelection>,
     /// Effects to be executed.
@@ -72,14 +80,14 @@ impl TransactionSpec {
     }
 
     /// Adds changes to the transaction specification.
-    pub fn with_changes(mut self, changes: ChangeSet) -> Self {
-        self.changes = Some(changes);
+    pub fn with_changes(mut self, changes: impl Into<Changes>) -> Self {
+        self.changes = Some(changes.into());
         self
     }
 
     /// Adds a single change spec to the transaction specification.
     pub fn with_change(mut self, change: ChangeSpec) -> Self {
-        self.changes = Some(ChangeSet::single(change));
+        self.changes = Some(Changes::Single(change));
         self
     }
 

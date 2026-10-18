@@ -5,7 +5,7 @@ use std::ops::Range;
 /// Immutable, persistent text buffer backed by `ropey::Rope`.
 /// All position coordinates are in Unicode codepoints (`char` indices)
 /// unless explicitly specified as byte offsets.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Text {
     rope: Rope,
 }
@@ -32,6 +32,13 @@ impl Text {
     }
 
     /// Returns the length of the text in Unicode codepoints (`char`).
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.rope.len_chars()
+    }
+
+    /// Returns the length of the text in Unicode codepoints (`char`).
+    #[inline]
     pub fn len_chars(&self) -> usize {
         self.rope.len_chars()
     }
@@ -125,6 +132,31 @@ impl Text {
             new_rope.insert(start, replacement);
         }
 
+        Self { rope: new_rope }
+    }
+
+    /// Returns a new `Text` containing the slice of this text in the given character range.
+    pub fn slice(&self, range: Range<usize>) -> Self {
+        let start = range.start.min(self.len_chars());
+        let end = range.end.min(self.len_chars()).max(start);
+        if start == end {
+            return Self::empty();
+        }
+        Self {
+            rope: self.rope.slice(start..end).into(),
+        }
+    }
+
+    /// Appends another `Text` to the end of this one, returning a new `Text`.
+    pub fn append(&self, other: &Self) -> Self {
+        if self.is_empty() {
+            return other.clone();
+        }
+        if other.is_empty() {
+            return self.clone();
+        }
+        let mut new_rope = self.rope.clone();
+        new_rope.append(other.rope.clone());
         Self { rope: new_rope }
     }
 

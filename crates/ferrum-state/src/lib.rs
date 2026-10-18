@@ -2,6 +2,7 @@
 //! for the Ferrum editor engine.
 
 pub mod change;
+pub mod char;
 pub mod config;
 pub mod facet;
 pub mod selection;
@@ -10,14 +11,17 @@ pub mod text;
 pub mod transaction;
 
 // Re-export common types at the crate root for ergonomics
-pub use change::{ChangeSet, ChangeSpec};
+pub use change::{ChangeDesc, ChangeSet, ChangeSpec, Changes, MapMode};
+pub use char::{
+    categorize_char, find_cluster_break, find_subword_break, find_word_break, CharCategory,
+};
 pub use config::Configuration;
 pub use facet::{
     AnyFacet, AnyStateField, Compartment, CompartmentId, Extension, Facet, FacetId, Prec,
     StateField, StateFieldId,
 };
 pub use selection::{EditorSelection, SelectionRange};
-pub use state::{EditorState, EditorStateConfig};
+pub use state::{ChangeByRangeResult, EditorState, EditorStateConfig, RangeResult};
 pub use text::{Line, Text};
 pub use transaction::{
     CompartmentReconfigure, StateEffect, Transaction, TransactionSpec, TRANSACTION_FILTER,

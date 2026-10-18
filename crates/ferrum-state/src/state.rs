@@ -1,12 +1,65 @@
-use crate::change::ChangeSet;
+use crate::change::{ChangeSet, ChangeSpec, Changes};
 use crate::config::Configuration;
 use crate::facet::{CompartmentId, Extension, Facet, StateField};
-use crate::selection::EditorSelection;
+use crate::selection::{EditorSelection, SelectionRange};
 use crate::text::Text;
-use crate::transaction::{CompartmentReconfigure, Transaction, TransactionSpec, TRANSACTION_FILTER};
+use crate::transaction::{
+    CompartmentReconfigure, StateEffect, Transaction, TransactionSpec, TRANSACTION_FILTER,
+};
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
+
+/// Result of running a function on a selection range in `change_by_range`.
+#[derive(Clone, Debug)]
+pub struct RangeResult {
+    pub range: SelectionRange,
+    pub changes: Option<ChangeSpec>,
+    pub effects: Vec<StateEffect>,
+}
+
+impl RangeResult {
+    /// Creates a range result with no changes and the specified new range.
+    pub fn range(range: SelectionRange) -> Self {
+        Self {
+            range,
+            changes: None,
+            effects: Vec::new(),
+        }
+    }
+
+    /// Attaches a change specification to this range result.
+    pub fn with_changes(mut self, changes: ChangeSpec) -> Self {
+        self.changes = Some(changes);
+        self
+    }
+
+    /// Attaches an effect to this range result.
+    pub fn with_effect(mut self, effect: StateEffect) -> Self {
+        self.effects.push(effect);
+        self
+    }
+}
+
+/// The aggregated result of `change_by_range`.
+#[derive(Clone)]
+pub struct ChangeByRangeResult {
+    pub changes: ChangeSet,
+    pub selection: EditorSelection,
+    pub effects: Vec<StateEffect>,
+}
+
+impl ChangeByRangeResult {
+    /// Converts this result into a `TransactionSpec`.
+    pub fn into_spec(self) -> TransactionSpec {
+        TransactionSpec {
+            changes: Some(Changes::Set(self.changes)),
+            selection: Some(self.selection),
+            effects: self.effects,
+        }
+    }
+}
+
 
 /// Configuration options passed to `EditorState::create`.
 #[derive(Default)]
@@ -91,10 +144,57 @@ impl EditorState {
         self.config.field(field, &self.field_values)
     }
 
+    /// Creates a `ChangeSet` from a `ChangeSpec` for this state's document.
+    pub fn changes(&self, spec: ChangeSpec) -> ChangeSet {
+        ChangeSet::of_spec(spec, self.doc.len_chars())
+    }
+
+    /// Creates a set of changes and a new selection by running the given function
+    /// for each range in the active selection, merging concurrent changes using
+    /// Operational Transformation (matching CM6's `changeByRange`).
+    pub fn change_by_range<F>(&self, mut f: F) -> ChangeByRangeResult
+    where
+        F: FnMut(&SelectionRange) -> RangeResult,
+    {
+        let sel = &self.selection;
+        let result1 = f(&sel.ranges()[0]);
+        let mut changes = match result1.changes {
+            Some(spec) => ChangeSet::of_spec(spec, self.doc.len_chars()),
+            None => ChangeSet::empty(self.doc.len_chars()),
+        };
+        let mut ranges = vec![result1.range];
+        let mut effects = result1.effects;
+
+        for i in 1..sel.ranges().len() {
+            let result = f(&sel.ranges()[i]);
+            let new_changes = match result.changes {
+                Some(spec) => ChangeSet::of_spec(spec, self.doc.len_chars()),
+                None => ChangeSet::empty(self.doc.len_chars()),
+            };
+            let new_mapped = new_changes.map(changes.desc(), false);
+            for j in 0..i {
+                ranges[j] = ranges[j].map(new_mapped.desc(), -1);
+            }
+            let map_by = changes.desc().map_desc(new_changes.desc(), true);
+            ranges.push(result.range.map(&map_by, -1));
+            changes = changes.compose(&new_mapped);
+            effects.extend(result.effects);
+        }
+
+        ChangeByRangeResult {
+            changes,
+            selection: EditorSelection::create(ranges, sel.main_index()),
+            effects,
+        }
+    }
+
     /// Creates a transaction from a specification.
     /// Runs all registered transaction filters. Returns `None` if any filter rejects the transaction.
     pub fn update(self: &Arc<Self>, spec: TransactionSpec) -> Option<Transaction> {
-        let changes = spec.changes.unwrap_or_else(ChangeSet::empty);
+        let changes = spec
+            .changes
+            .map(|c| c.to_changeset(self.doc.len_chars()))
+            .unwrap_or_else(|| ChangeSet::empty(self.doc.len_chars()));
         let doc_changed = !changes.is_empty();
         let new_doc = if doc_changed {
             changes.apply(&self.doc)
@@ -104,25 +204,7 @@ impl EditorState {
 
         let new_selection = spec.selection.or_else(|| {
             if doc_changed {
-                // Map current selection ranges forward through the changes
-                let mapped_ranges = self
-                    .selection
-                    .ranges()
-                    .iter()
-                    .map(|r| {
-                        let anchor = changes.map_pos(r.anchor, r.assoc);
-                        let head = changes.map_pos(r.head, r.assoc);
-                        let (from, to) = (anchor.min(head), anchor.max(head));
-                        let clamped_from = from.min(new_doc.len_chars());
-                        let clamped_to = to.min(new_doc.len_chars());
-                        if r.is_inverted() {
-                            crate::selection::SelectionRange::new(clamped_to, clamped_from)
-                        } else {
-                            crate::selection::SelectionRange::new(clamped_from, clamped_to)
-                        }
-                    })
-                    .collect();
-                Some(EditorSelection::create(mapped_ranges, self.selection.main_index()))
+                Some(self.selection.map(changes.desc(), -1))
             } else {
                 None
             }

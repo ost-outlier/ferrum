@@ -6,7 +6,7 @@
 //! - Dynamic Compartment reconfiguration via transactions
 //! - High-level editing commands (insert, delete, navigate)
 
-use ferrum::commands::{delete_backward, insert_text, select_all};
+use ferrum::commands::{delete_char_backward, insert_text, select_all};
 use ferrum::state::{
     Compartment, EditorState, EditorStateConfig, Facet, StateField, Text, TransactionSpec,
     TRANSACTION_FILTER,
@@ -25,13 +25,14 @@ fn main() {
 
     // 3. Define a transaction filter that prevents typing forbidden characters (e.g. '@')
     let block_at_symbol = Arc::new(|tr: &ferrum::state::Transaction| {
-        for change in tr.changes().changes() {
-            if change.insert.contains('@') {
+        let mut allowed = true;
+        tr.changes().iter_changes(|_, _, _, _, inserted| {
+            if inserted.to_string().contains('@') {
                 println!("  [Filter Triggered] Transaction blocked: '@' character is not allowed!");
-                return false;
+                allowed = false;
             }
-        }
-        true
+        }, false);
+        allowed
     });
 
     // 4. Create a dynamic compartment for hot-reloading extensions (e.g., Theme)
@@ -90,7 +91,7 @@ fn main() {
     println!("5. Testing Select All and Backspace (Clean buffer):");
     let select_all_spec = select_all(view.state()).unwrap();
     view.dispatch(select_all_spec);
-    let delete_spec = delete_backward(view.state()).unwrap();
+    let delete_spec = delete_char_backward(view.state()).unwrap();
     view.dispatch(delete_spec);
 
     println!("   Doc is empty: {}", view.state().doc().is_empty());

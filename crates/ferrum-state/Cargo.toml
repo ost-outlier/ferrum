@@ -12,3 +12,4 @@ ropey = { workspace = true }
 smallvec = { workspace = true }
 parking_lot = { workspace = true }
 thiserror = { workspace = true }
+unicode-segmentation = { workspace = true }

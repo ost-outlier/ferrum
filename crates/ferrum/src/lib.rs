@@ -20,7 +20,8 @@ pub use ferrum_view::{Decoration, DecorationKind, DecorationSet, EditorView, Vie
 
 #[cfg(feature = "commands")]
 pub use ferrum_commands::{
-    delete_backward, delete_forward, insert_text, move_cursor_left, move_cursor_right, select_all,
+    cursor_char_left, cursor_char_right, default_keymap, delete_char_backward, delete_char_forward,
+    dispatch_key, insert_text, select_all, standard_keymap, KeyBinding, StateCommand, KEYMAP,
 };
 
 #[cfg(test)]
