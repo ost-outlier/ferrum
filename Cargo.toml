@@ -4,6 +4,7 @@ members = [
     "crates/ferrum-state",
     "crates/ferrum-commands",
     "crates/ferrum-view",
+    "crates/ferrum-view-gpui",
     "crates/ferrum",
 ]
 
@@ -20,3 +21,6 @@ smallvec = "1.13"
 parking_lot = "0.12"
 thiserror = "2.0"
 unicode-segmentation = "1.13"
+
+[patch.crates-io]
+xattr = { path = "patches/xattr-0.2.3" }

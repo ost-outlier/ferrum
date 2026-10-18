@@ -548,3 +548,15 @@ pub fn redo_depth(state: &EditorState) -> usize {
         .map(|h| h.undone.iter().filter(|e| e.changes.is_some()).count())
         .unwrap_or(0)
 }
+
+/// Standard history keymap matching CodeMirror 6 historyKeymap.
+pub fn history_keymap() -> Vec<crate::commands::KeyBinding> {
+    vec![
+        crate::commands::KeyBinding::new("Mod-z", undo),
+        crate::commands::KeyBinding::new("Mod-y", redo),
+        crate::commands::KeyBinding::new("Shift-Mod-z", redo),
+        crate::commands::KeyBinding::new("Mod-u", undo_selection),
+        crate::commands::KeyBinding::new("Alt-u", redo_selection),
+    ]
+}
+

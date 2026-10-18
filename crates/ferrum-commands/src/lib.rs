@@ -20,8 +20,8 @@ pub use commands::{
 };
 
 pub use history::{
-    history, redo, redo_depth, redo_selection, undo, undo_depth, undo_selection, BranchName,
-    HistEvent, HistoryConfig, HistoryState, HISTORY_CONFIG, HISTORY_FIELD,
+    history, history_keymap, redo, redo_depth, redo_selection, undo, undo_depth, undo_selection,
+    BranchName, HistEvent, HistoryConfig, HistoryState, HISTORY_CONFIG, HISTORY_FIELD,
 };
 
 #[cfg(test)]

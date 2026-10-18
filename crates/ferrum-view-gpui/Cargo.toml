@@ -1,0 +1,15 @@
+[package]
+name = "ferrum-view-gpui"
+version.workspace = true
+edition.workspace = true
+license = "Apache-2.0"
+authors.workspace = true
+repository.workspace = true
+description = "GPUI rendering surface and native window bridge for the Ferrum editor engine"
+
+[dependencies]
+gpui = "0.2.2"
+ferrum-state = { path = "../ferrum-state" }
+ferrum-commands = { path = "../ferrum-commands" }
+ferrum-view = { path = "../ferrum-view" }
+unicode-segmentation.workspace = true
