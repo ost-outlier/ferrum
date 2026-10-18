@@ -56,6 +56,7 @@ impl ChangeByRangeResult {
             changes: Some(Changes::Set(self.changes)),
             selection: Some(self.selection),
             effects: self.effects,
+            annotations: Vec::new(),
         }
     }
 }
@@ -210,11 +211,21 @@ impl EditorState {
             }
         });
 
+        let mut annotations = spec.annotations;
+        if !annotations.iter().any(|a| a.downcast_ref::<crate::transaction::TransactionTime>().is_some()) {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            annotations.push(crate::transaction::Annotation::of(crate::transaction::TransactionTime(now)));
+        }
+
         let tr = Transaction {
             start_state: self.clone(),
             changes,
             selection: new_selection,
             effects: spec.effects,
+            annotations,
             doc: new_doc,
             doc_changed,
         };

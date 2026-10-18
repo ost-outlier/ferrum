@@ -71,6 +71,8 @@ pub struct TransactionSpec {
     pub selection: Option<EditorSelection>,
     /// Effects to be executed.
     pub effects: Vec<StateEffect>,
+    /// Metadata annotations attached to the transaction.
+    pub annotations: Vec<Annotation>,
 }
 
 impl TransactionSpec {
@@ -102,7 +104,59 @@ impl TransactionSpec {
         self.effects.push(effect);
         self
     }
+
+    /// Adds an annotation to the transaction specification.
+    pub fn with_annotation<T: 'static + Send + Sync + Clone>(mut self, value: T) -> Self {
+        self.annotations.push(Annotation::of(value));
+        self
+    }
 }
+
+/// A strongly-typed metadata annotation attached to a transaction.
+#[derive(Clone)]
+pub struct Annotation {
+    pub(crate) type_id: TypeId,
+    pub(crate) value: Arc<dyn Any + Send + Sync>,
+}
+
+impl Annotation {
+    /// Creates a new annotation of a specific type.
+    pub fn of<T: 'static + Send + Sync + Clone>(value: T) -> Self {
+        Self {
+            type_id: TypeId::of::<T>(),
+            value: Arc::new(value),
+        }
+    }
+
+    /// Downcasts the annotation to a reference of type `T`.
+    pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
+        if self.type_id == TypeId::of::<T>() {
+            self.value.downcast_ref::<T>()
+        } else {
+            None
+        }
+    }
+}
+
+/// Controls history isolation for a transaction (matches CM6 isolateHistory).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IsolateHistory {
+    Before,
+    After,
+    Full,
+}
+
+/// Disables adding a transaction to the undo history when set to false (matches CM6 addToHistory).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AddToHistory(pub bool);
+
+/// User event annotation describing the source of a transaction (matches CM6 userEvent).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UserEvent(pub String);
+
+/// Timestamp of a transaction in milliseconds (matches CM6 Transaction.time).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TransactionTime(pub u64);
 
 /// A transaction represents an atomic update to an `EditorState`.
 /// In Ferrum, states are immutable — transactions take an existing state and produce a new one.
@@ -111,6 +165,7 @@ pub struct Transaction {
     pub(crate) changes: ChangeSet,
     pub(crate) selection: Option<EditorSelection>,
     pub(crate) effects: Vec<StateEffect>,
+    pub(crate) annotations: Vec<Annotation>,
     pub(crate) doc: Text,
     pub(crate) doc_changed: bool,
 }
@@ -134,6 +189,16 @@ impl Transaction {
     /// All effects attached to this transaction.
     pub fn effects(&self) -> &[StateEffect] {
         &self.effects
+    }
+
+    /// Retrieves an annotation of type `T` from this transaction.
+    pub fn annotation<T: 'static>(&self) -> Option<&T> {
+        for a in self.annotations.iter().rev() {
+            if let Some(val) = a.downcast_ref::<T>() {
+                return Some(val);
+            }
+        }
+        None
     }
 
     /// The resulting document after applying `changes`.

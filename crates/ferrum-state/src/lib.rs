@@ -24,8 +24,8 @@ pub use selection::{EditorSelection, SelectionRange};
 pub use state::{ChangeByRangeResult, EditorState, EditorStateConfig, RangeResult};
 pub use text::{Line, Text};
 pub use transaction::{
-    CompartmentReconfigure, StateEffect, Transaction, TransactionSpec, TRANSACTION_FILTER,
-    TransactionFilterFn,
+    AddToHistory, Annotation, CompartmentReconfigure, IsolateHistory, StateEffect, Transaction,
+    TransactionSpec, TransactionTime, UserEvent, TRANSACTION_FILTER, TransactionFilterFn,
 };
 
 #[cfg(test)]

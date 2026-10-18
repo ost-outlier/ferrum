@@ -1,6 +1,7 @@
 //! `ferrum-commands` - Text editing commands and keymaps for the Ferrum editor engine.
 
 pub mod commands;
+pub mod history;
 
 pub use commands::{
     copy_line_down, copy_line_up, cursor_char_left, cursor_char_right, cursor_doc_end,
@@ -16,6 +17,11 @@ pub use commands::{
     select_line_down, select_line_end, select_line_start, select_line_up, select_subword_backward,
     select_subword_forward, simplify_selection, split_line, standard_keymap, transpose_chars,
     KeyBinding, StateCommand, KEYMAP,
+};
+
+pub use history::{
+    history, redo, redo_depth, redo_selection, undo, undo_depth, undo_selection, BranchName,
+    HistEvent, HistoryConfig, HistoryState, HISTORY_CONFIG, HISTORY_FIELD,
 };
 
 #[cfg(test)]

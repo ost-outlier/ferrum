@@ -471,4 +471,261 @@ fn test_cm6_transpose_chars() {
     test("ab|\ncd", "a\nb|cd");
 }
 
+use ferrum_state::change::ChangeSpec;
+use ferrum_state::transaction::TransactionSpec;
+use ferrum_state::{AddToHistory, IsolateHistory, TransactionTime};
+use crate::history::{
+    history, redo, redo_depth, undo, undo_depth, HistoryConfig,
+};
+
+fn mk_history_state(config: Option<HistoryConfig>, doc: Option<&str>) -> std::sync::Arc<EditorState> {
+    EditorState::create(EditorStateConfig {
+        doc: doc.map(Text::from),
+        selection: None,
+        extensions: Some(vec![history(config.unwrap_or_default())]),
+    })
+}
+
+fn type_text(state: &std::sync::Arc<EditorState>, text: &str) -> std::sync::Arc<EditorState> {
+    type_at(state, text, state.doc().len_chars())
+}
+
+fn type_at(state: &std::sync::Arc<EditorState>, text: &str, at: usize) -> std::sync::Arc<EditorState> {
+    let spec = TransactionSpec::new().with_change(ChangeSpec::insert(at, text));
+    let tr = state.update(spec).expect("type transaction");
+    state.apply(tr)
+}
+
+fn timed_type(state: &std::sync::Arc<EditorState>, text: &str, at_time: u64) -> std::sync::Arc<EditorState> {
+    let spec = TransactionSpec::new()
+        .with_change(ChangeSpec::insert(state.doc().len_chars(), text))
+        .with_annotation(TransactionTime(at_time));
+    let tr = state.update(spec).expect("timed type transaction");
+    state.apply(tr)
+}
+
+fn receive(state: &std::sync::Arc<EditorState>, text: &str, from: usize, to: usize) -> std::sync::Arc<EditorState> {
+    let spec = TransactionSpec::new()
+        .with_change(ChangeSpec::replace(from, to, text))
+        .with_annotation(AddToHistory(false));
+    let tr = state.update(spec).expect("remote receive transaction");
+    state.apply(tr)
+}
+
+fn exec_cmd(
+    state: &std::sync::Arc<EditorState>,
+    cmd: impl Fn(&EditorState) -> Option<TransactionSpec>,
+    expect_success: bool,
+) -> std::sync::Arc<EditorState> {
+    if let Some(spec) = cmd(state) {
+        assert!(expect_success, "Expected command to fail but it succeeded");
+        if let Some(tr) = state.update(spec) {
+            return state.apply(tr);
+        }
+    } else {
+        assert!(!expect_success, "Expected command to succeed but returned None");
+    }
+    state.clone()
+}
+
+#[test]
+fn test_cm6_history_allows_undo_and_redo() {
+    let state = mk_history_state(None, None);
+    let state = type_text(&state, "newtext");
+    assert_eq!(state.doc().to_string(), "newtext");
+    assert_eq!(undo_depth(&state), 1);
+    assert_eq!(redo_depth(&state), 0);
+
+    let state = exec_cmd(&state, undo, true);
+    assert_eq!(state.doc().to_string(), "");
+    assert_eq!(undo_depth(&state), 0);
+    assert_eq!(redo_depth(&state), 1);
+
+    let state = exec_cmd(&state, redo, true);
+    assert_eq!(state.doc().to_string(), "newtext");
+    assert_eq!(undo_depth(&state), 1);
+    assert_eq!(redo_depth(&state), 0);
+}
+
+#[test]
+fn test_cm6_history_undoes_nearby_changes_in_one_step() {
+    let state = mk_history_state(None, None);
+    let state = type_text(&state, "new");
+    let state = type_text(&state, "text");
+    assert_eq!(state.doc().to_string(), "newtext");
+
+    let state = exec_cmd(&state, undo, true);
+    assert_eq!(state.doc().to_string(), "");
+
+    let state = exec_cmd(&state, redo, true);
+    assert_eq!(state.doc().to_string(), "newtext");
+}
+
+#[test]
+fn test_cm6_history_tracks_multiple_levels() {
+    let state = mk_history_state(None, Some("one"));
+    let state = type_text(&state, "new");
+    let state = type_text(&state, "text");
+    let state = type_at(&state, "some", 0);
+    assert_eq!(state.doc().to_string(), "someonenewtext");
+
+    let state = exec_cmd(&state, undo, true);
+    assert_eq!(state.doc().to_string(), "onenewtext");
+
+    let state = exec_cmd(&state, undo, true);
+    assert_eq!(state.doc().to_string(), "one");
+
+    let state = exec_cmd(&state, redo, true);
+    assert_eq!(state.doc().to_string(), "onenewtext");
+
+    let state = exec_cmd(&state, redo, true);
+    assert_eq!(state.doc().to_string(), "someonenewtext");
+
+    let state = exec_cmd(&state, undo, true);
+    assert_eq!(state.doc().to_string(), "onenewtext");
+}
+
+#[test]
+fn test_cm6_history_new_group_delay() {
+    let config = HistoryConfig {
+        new_group_delay: 1000,
+        ..Default::default()
+    };
+    let state = mk_history_state(Some(config), None);
+    let state = timed_type(&state, "a", 1000);
+    let state = timed_type(&state, "b", 1600);
+    assert_eq!(undo_depth(&state), 1);
+
+    let state = timed_type(&state, "c", 2700);
+    assert_eq!(undo_depth(&state), 2);
+
+    let state = exec_cmd(&state, undo, true);
+    let state = timed_type(&state, "d", 2800);
+    assert_eq!(undo_depth(&state), 2);
+}
+
+#[test]
+fn test_cm6_history_isolate_history() {
+    let state = mk_history_state(None, None);
+    let state = type_text(&state, "hello");
+    let spec = TransactionSpec::new().with_annotation(IsolateHistory::Before);
+    let tr = state.update(spec).unwrap();
+    let state = state.apply(tr);
+
+    let state = type_text(&state, "!");
+    assert_eq!(state.doc().to_string(), "hello!");
+
+    let state = exec_cmd(&state, undo, true);
+    assert_eq!(state.doc().to_string(), "hello");
+
+    let state = exec_cmd(&state, undo, true);
+    assert_eq!(state.doc().to_string(), "");
+}
+
+#[test]
+fn test_cm6_history_allows_untracked_changes() {
+    let state = mk_history_state(None, None);
+    let state = type_text(&state, "hello");
+    let state = receive(&state, "oops", 0, 0); // Not added to history
+    let state = receive(&state, "!", 9, 9);
+    assert_eq!(state.doc().to_string(), "oopshello!");
+
+    let state = exec_cmd(&state, undo, true);
+    assert_eq!(state.doc().to_string(), "oops!");
+}
+
+#[test]
+fn test_cm6_history_custom_join_predicate() {
+    let config = HistoryConfig {
+        join_to_event: Some(std::sync::Arc::new(|tr, adj| {
+            if !adj {
+                return false;
+            }
+            let mut space = false;
+            tr.changes().iter_changes(
+                |_, _, _, _, text| {
+                    if !text.is_empty() && text.slice_to_string(0..1) == " " {
+                        space = true;
+                    }
+                },
+                false,
+            );
+            !space
+        })),
+        ..Default::default()
+    };
+    let state = mk_history_state(Some(config), None);
+    let mut state = state;
+    for ch in "ab cd".chars() {
+        state = type_text(&state, &ch.to_string());
+    }
+    assert_eq!(state.doc().to_string(), "ab cd");
+
+    let state = exec_cmd(&state, undo, true);
+    assert_eq!(state.doc().to_string(), "ab");
+
+    let state = exec_cmd(&state, undo, true);
+    assert_eq!(state.doc().to_string(), "");
+}
+
+#[test]
+fn test_cm6_history_undo_not_adding_redo_item() {
+    let state = mk_history_state(None, Some("ab"));
+    let state = type_at(&state, "cd", 1);
+    let state = receive(&state, "123", 0, 4);
+    let state = exec_cmd(&state, undo, false);
+    let _state = exec_cmd(&state, redo, false);
+}
+
+#[test]
+fn test_cm6_history_complex_editing_sequences() {
+    let state = mk_history_state(None, None);
+    let state = type_text(&state, "hello");
+    let tr = state.update(TransactionSpec::new().with_annotation(IsolateHistory::Before)).unwrap();
+    let state = state.apply(tr);
+    let state = type_text(&state, "!");
+    let state = receive(&state, "....", 0, 0);
+    let state = type_at(&state, "\n\n", 2);
+    assert_eq!(state.doc().to_string(), "..\n\n..hello!");
+
+    let state = receive(&state, "\n\n", 1, 1);
+    let state = exec_cmd(&state, undo, true);
+    let state = exec_cmd(&state, undo, true);
+    assert_eq!(state.doc().to_string(), ".\n\n...hello");
+
+    let state = exec_cmd(&state, undo, true);
+    assert_eq!(state.doc().to_string(), ".\n\n...");
+}
+
+#[test]
+fn test_cm6_history_back_and_forth_multiple_times() {
+    let state = mk_history_state(None, None);
+    let state = type_text(&state, "one");
+    let state = type_text(&state, " two");
+    let tr = state.update(TransactionSpec::new().with_annotation(IsolateHistory::Before)).unwrap();
+    let state = state.apply(tr);
+    let state = type_text(&state, " three");
+    let state = type_at(&state, "zero ", 0);
+    let tr = state.update(TransactionSpec::new().with_annotation(IsolateHistory::Before)).unwrap();
+    let state = state.apply(tr);
+    let state = type_at(&state, "\n\n", 0);
+    let mut state = type_at(&state, "top", 0);
+
+    for i in 0..6 {
+        let is_redo = i % 2 == 1;
+        for _ in 0..4 {
+            state = exec_cmd(&state, if is_redo { redo } else { undo }, true);
+        }
+        assert_eq!(
+            state.doc().to_string(),
+            if is_redo {
+                "top\n\nzero one two three"
+            } else {
+                ""
+            }
+        );
+    }
+}
+
+
 
