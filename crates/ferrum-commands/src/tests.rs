@@ -337,4 +337,138 @@ fn test_cm6_indent_more_command() {
     assert_eq!(state_str(&next_state), "    on<e\n    two\n>three");
 }
 
+fn run_cmd(
+    state: &std::sync::Arc<EditorState>,
+    cmd: impl Fn(&EditorState) -> Option<ferrum_state::transaction::TransactionSpec>,
+) -> std::sync::Arc<EditorState> {
+    if let Some(spec) = cmd(state) {
+        if let Some(tr) = state.update(spec) {
+            return state.apply(tr);
+        }
+    }
+    state.clone()
+}
+
+#[test]
+fn test_cm6_delete_trailing_whitespace() {
+    fn test(from: &str, expected: &str) {
+        let state = mk_state(from);
+        let next_state = run_cmd(&state, delete_trailing_whitespace);
+        assert_eq!(next_state.doc().to_string(), expected);
+    }
+
+    test("foo   ", "foo");
+    test("one\ntwo \nthree   \n   ", "one\ntwo\nthree\n");
+    test("one  \n\ntwo ", "one\n\ntwo");
+}
+
+#[test]
+fn test_cm6_insert_newline_keep_indent() {
+    fn test(from: &str, expected: &str) {
+        let state = mk_state(from);
+        let next_state = run_cmd(&state, insert_newline_keep_indent);
+        assert_eq!(state_str(&next_state), expected);
+    }
+
+    test("  one|", "  one\n  |");
+    test("one|two", "one\n|two");
+    test("if x:\n  one<two\n  three>four", "if x:\n  one\n  |four");
+}
+
+#[test]
+fn test_cm6_delete_group_forward() {
+    fn test(from: &str, expected: &str) {
+        let state = mk_state(from);
+        let next_state = run_cmd(&state, delete_group_forward);
+        assert_eq!(state_str(&next_state), expected);
+    }
+
+    test("one |two three", "one | three");
+    test("one| two three", "one| three");
+    test("one|...two", "one|two");
+    test("one|  \ttwo", "one|two");
+    test("one|\ntwo", "one|two");
+    test("one| \n two", "one|\n two");
+    test("one|\n two", "one| two");
+    test("one|two", "one|");
+    test("one|", "one|");
+}
+
+#[test]
+fn test_cm6_delete_group_backward() {
+    fn test(from: &str, expected: &str) {
+        let state = mk_state(from);
+        let next_state = run_cmd(&state, delete_group_backward);
+        assert_eq!(state_str(&next_state), expected);
+    }
+
+    test("one two| three", "one | three");
+    test("one two |three", "one |three");
+    test("one...|two", "one|two");
+    test("one \t |two", "one|two");
+    test("one\n|two", "one|two");
+    test("one \n |two", "one \n|two");
+    test("one \n|two", "one |two");
+    test("one|two", "|two");
+}
+
+#[test]
+fn test_cm6_move_line_up() {
+    fn test(from: &str, expected: &str) {
+        let state = mk_state(from);
+        let next_state = run_cmd(&state, move_line_up);
+        assert_eq!(state_str(&next_state), expected);
+    }
+
+    test("one\ntwo|\nthree", "two|\none\nthree");
+    test("one\nt|w|o|\n", "t|w|o|\none\n");
+    test("one\ntwo\nthr<ee\nfour\nfive>\n", "one\nthr<ee\nfour\nfive>\ntwo\n");
+    test("one\n<two\nth>ree\nfo|u<r\nfive>\n", "<two\nth>ree\nfo|u<r\nfive>\none\n");
+    test("one\n<two\nthree\n>four", "<two\nthree\n>one\nfour");
+}
+
+#[test]
+fn test_cm6_move_line_down() {
+    fn test(from: &str, expected: &str) {
+        let state = mk_state(from);
+        let next_state = run_cmd(&state, move_line_down);
+        assert_eq!(state_str(&next_state), expected);
+    }
+
+    test("one\ntwo|\nthree", "one\nthree\ntwo|");
+    test("one\nt|w|o|\nthree", "one\nthree\nt|w|o|");
+    test("one\ntwo\nthr<ee\nfour\nfive>\nsix", "one\ntwo\nsix\nthr<ee\nfour\nfive>");
+    test("one\n<two\nth>ree\nfo|u<r\nfive>\nsix\n", "one\nsix\n<two\nth>ree\nfo|u<r\nfive>\n");
+    test("one\n<two\nthree\n>four\n", "one\nfour\n<two\nthree\n>");
+    test("one\n<two\nthree\n>four", "one\nfour\n<two\nthree>");
+}
+
+#[test]
+fn test_cm6_split_line() {
+    fn test(from: &str, expected: &str) {
+        let state = mk_state(from);
+        let next_state = run_cmd(&state, split_line);
+        assert_eq!(state_str(&next_state), expected);
+    }
+
+    test("one|two", "one|\ntwo");
+    test("<one>two", "|\ntwo");
+}
+
+#[test]
+fn test_cm6_transpose_chars() {
+    fn test(from: &str, expected: &str) {
+        let state = mk_state(from);
+        let next_state = run_cmd(&state, transpose_chars);
+        assert_eq!(state_str(&next_state), expected);
+    }
+
+    // Swaps 'b' (before cursor) and 'c' (after cursor) -> 'c' followed by 'b'
+    test("ab|cd", "acb|d");
+    // Swaps 'a' (before cursor) and 'b' (after cursor) -> 'b' followed by 'a'
+    test("a|bc", "ba|c");
+    // Multi-line: at line boundary pos == line.to but line.to < doc.length
+    test("ab|\ncd", "a\nb|cd");
+}
+
 

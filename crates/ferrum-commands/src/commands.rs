@@ -1,6 +1,6 @@
 use ferrum_state::change::ChangeSpec;
 use ferrum_state::char::{
-    find_cluster_break, find_subword_break, find_word_break,
+    categorize_char, find_cluster_break, find_subword_break, find_word_break, CharCategory,
 };
 use ferrum_state::facet::Facet;
 use ferrum_state::selection::{EditorSelection, SelectionRange};
@@ -700,19 +700,64 @@ pub fn delete_char_forward(state: &EditorState) -> Option<TransactionSpec> {
     }
 }
 
-/// Delete word/group backward (Ctrl+Backspace).
-pub fn delete_group_backward(state: &EditorState) -> Option<TransactionSpec> {
-    let doc_str = state.doc().to_string();
-    let res = state.change_by_range(|r| {
-        if !r.is_empty() {
-            RangeResult::range(SelectionRange::cursor(r.from()))
-                .with_changes(ChangeSpec::delete(r.from(), r.to()))
-        } else if r.head > 0 {
-            let prev = find_word_break(&doc_str, r.head, false);
-            RangeResult::range(SelectionRange::cursor(prev))
-                .with_changes(ChangeSpec::delete(prev, r.head))
+fn delete_by_group(state: &EditorState, forward: bool) -> Option<TransactionSpec> {
+    let doc = state.doc();
+    let num_lines = doc.len_lines();
+    let res = state.change_by_range(|range| {
+        if !range.is_empty() {
+            return RangeResult::range(SelectionRange::cursor(range.from()))
+                .with_changes(ChangeSpec::delete(range.from(), range.to()));
+        }
+        let head = range.head;
+        let line = doc.line_at(head);
+        let line_text = doc.slice_to_string(line.from..line.to);
+        let mut pos = head;
+        let mut cat: Option<CharCategory> = None;
+
+        loop {
+            let line_limit = if forward { line.to } else { line.from };
+            if pos == line_limit {
+                if pos == head {
+                    let is_last_line = line.number == num_lines;
+                    let is_first_line = line.number == 1;
+                    if forward && !is_last_line {
+                        pos += 1;
+                    } else if !forward && !is_first_line {
+                        pos -= 1;
+                    }
+                }
+                break;
+            }
+
+            let next_rel = find_cluster_break(&line_text, pos - line.from, forward);
+            let next = next_rel + line.from;
+            let (start_rel, end_rel) = if pos < next {
+                (pos - line.from, next - line.from)
+            } else {
+                (next - line.from, pos - line.from)
+            };
+            let cluster: String = line_text.chars().skip(start_rel).take(end_rel - start_rel).collect();
+            let first_char = cluster.chars().next().unwrap_or(' ');
+            let next_cat = categorize_char(first_char);
+
+            if let Some(c) = cat {
+                if next_cat != c {
+                    break;
+                }
+            }
+            if cluster != " " || pos != head {
+                cat = Some(next_cat);
+            }
+            pos = next;
+        }
+
+        if pos == head {
+            RangeResult::range(*range)
         } else {
-            RangeResult::range(*r)
+            let from = std::cmp::min(head, pos);
+            let to = std::cmp::max(head, pos);
+            RangeResult::range(SelectionRange::cursor(from))
+                .with_changes(ChangeSpec::delete(from, to))
         }
     });
 
@@ -723,28 +768,14 @@ pub fn delete_group_backward(state: &EditorState) -> Option<TransactionSpec> {
     }
 }
 
+/// Delete word/group backward (Ctrl+Backspace).
+pub fn delete_group_backward(state: &EditorState) -> Option<TransactionSpec> {
+    delete_by_group(state, false)
+}
+
 /// Delete word/group forward (Ctrl+Delete).
 pub fn delete_group_forward(state: &EditorState) -> Option<TransactionSpec> {
-    let doc_str = state.doc().to_string();
-    let doc_len = state.doc().len_chars();
-    let res = state.change_by_range(|r| {
-        if !r.is_empty() {
-            RangeResult::range(SelectionRange::cursor(r.from()))
-                .with_changes(ChangeSpec::delete(r.from(), r.to()))
-        } else if r.head < doc_len {
-            let next = find_word_break(&doc_str, r.head, true);
-            RangeResult::range(SelectionRange::cursor(r.head))
-                .with_changes(ChangeSpec::delete(r.head, next))
-        } else {
-            RangeResult::range(*r)
-        }
-    });
-
-    if res.changes.is_empty() {
-        None
-    } else {
-        Some(res.into_spec())
-    }
+    delete_by_group(state, true)
 }
 
 /// Delete from cursor to the start of the current line.
@@ -820,107 +851,232 @@ pub fn delete_line(state: &EditorState) -> Option<TransactionSpec> {
 // Line Manipulation (Move Line Up/Down, Duplicate Line)
 // =========================================================================
 
+struct SelectedBlock {
+    from: usize,
+    to: usize,
+    ranges: Vec<SelectionRange>,
+}
+
+fn selected_line_blocks(state: &EditorState) -> Vec<SelectedBlock> {
+    let mut blocks: Vec<SelectedBlock> = Vec::new();
+    let mut upto: isize = -1;
+    let doc = state.doc();
+
+    for range in state.selection().ranges() {
+        let start_line = doc.line_at(range.from());
+        let mut end_line = doc.line_at(range.to());
+        if !range.is_empty() && range.to() == end_line.from && range.to() > 0 {
+            end_line = doc.line_at(range.to() - 1);
+        }
+        let start_num = start_line.number as isize;
+        let end_num = end_line.number as isize;
+
+        if upto >= start_num && !blocks.is_empty() {
+            let prev = blocks.last_mut().unwrap();
+            prev.to = end_line.to;
+            prev.ranges.push(*range);
+        } else {
+            blocks.push(SelectedBlock {
+                from: start_line.from,
+                to: end_line.to,
+                ranges: vec![*range],
+            });
+        }
+        upto = end_num + 1;
+    }
+    blocks
+}
+
+fn move_line(state: &EditorState, forward: bool) -> Option<TransactionSpec> {
+    let doc = state.doc();
+    let doc_len = doc.len_chars();
+    let mut changes: Vec<ChangeSpec> = Vec::new();
+    let mut ranges: Vec<SelectionRange> = Vec::new();
+
+    for block in selected_line_blocks(state) {
+        if forward {
+            if block.to >= doc_len {
+                continue;
+            }
+            let next_line = doc.line_at(block.to + 1);
+            let size = next_line.length + 1;
+            let next_line_text = doc.slice_to_string(next_line.from..next_line.to);
+
+            changes.push(ChangeSpec::delete(block.to, next_line.to));
+            changes.push(ChangeSpec::insert(block.from, format!("{}\n", next_line_text)));
+
+            for r in block.ranges {
+                let new_anchor = std::cmp::min(doc_len, r.anchor + size);
+                let new_head = std::cmp::min(doc_len, r.head + size);
+                ranges.push(SelectionRange::new(new_anchor, new_head));
+            }
+        } else {
+            if block.from == 0 {
+                continue;
+            }
+            let next_line = doc.line_at(block.from - 1);
+            let size = next_line.length + 1;
+            let next_line_text = doc.slice_to_string(next_line.from..next_line.to);
+
+            changes.push(ChangeSpec::delete(next_line.from, block.from));
+            changes.push(ChangeSpec::insert(block.to, format!("\n{}", next_line_text)));
+
+            for r in block.ranges {
+                let new_anchor = r.anchor.saturating_sub(size);
+                let new_head = r.head.saturating_sub(size);
+                ranges.push(SelectionRange::new(new_anchor, new_head));
+            }
+        }
+    }
+
+    if changes.is_empty() {
+        None
+    } else {
+        changes.sort_by_key(|c| c.from);
+        Some(
+            TransactionSpec::new()
+                .with_changes(changes)
+                .with_selection(EditorSelection::create(
+                    ranges,
+                    state.selection().main_index(),
+                )),
+        )
+    }
+}
+
 /// Move selected lines up one line (Alt+Up).
 pub fn move_line_up(state: &EditorState) -> Option<TransactionSpec> {
-    let doc = state.doc();
-    let main_range = state.selection().main();
-    let start_line_idx = doc.char_to_line(main_range.from());
-    if start_line_idx == 0 {
-        return None; // Already at the top line
-    }
-    let end_line_idx = doc.char_to_line(main_range.to());
-
-    let prev_line = doc.line(start_line_idx - 1);
-    let curr_end_line = doc.line(end_line_idx);
-
-    // Text of previous line
-    let prev_text = doc.slice_to_string(prev_line.from..prev_line.to);
-    // Text of current line range
-    let curr_text = doc.slice_to_string(doc.line(start_line_idx).from..curr_end_line.to);
-
-    let replacement = format!("{}\n{}", curr_text, prev_text);
-    let from = prev_line.from;
-    let to = curr_end_line.to;
-
-    let shift = (prev_line.length + 1) as isize;
-    let new_anchor = (main_range.anchor as isize - shift).max(0) as usize;
-    let new_head = (main_range.head as isize - shift).max(0) as usize;
-
-    Some(
-        TransactionSpec::new()
-            .with_change(ChangeSpec::replace(from, to, replacement))
-            .with_selection(EditorSelection::single(new_anchor, new_head)),
-    )
+    move_line(state, false)
 }
 
 /// Move selected lines down one line (Alt+Down).
 pub fn move_line_down(state: &EditorState) -> Option<TransactionSpec> {
+    move_line(state, true)
+}
+
+fn copy_line(state: &EditorState, forward: bool) -> Option<TransactionSpec> {
     let doc = state.doc();
-    let main_range = state.selection().main();
-    let start_line_idx = doc.char_to_line(main_range.from());
-    let end_line_idx = doc.char_to_line(main_range.to());
-    if end_line_idx + 1 >= doc.len_lines() {
-        return None; // Already at the bottom line
+    let mut changes: Vec<ChangeSpec> = Vec::new();
+
+    for block in selected_line_blocks(state) {
+        let block_text = doc.slice_to_string(block.from..block.to);
+        if forward {
+            changes.push(ChangeSpec::insert(block.from, format!("{}\n", block_text)));
+        } else {
+            changes.push(ChangeSpec::insert(block.to, format!("\n{}", block_text)));
+        }
+    }
+    if changes.is_empty() {
+        return None;
     }
 
-    let next_line = doc.line(end_line_idx + 1);
-    let curr_start_line = doc.line(start_line_idx);
-    let curr_end_line = doc.line(end_line_idx);
-
-    let curr_text = doc.slice_to_string(curr_start_line.from..curr_end_line.to);
-    let next_text = doc.slice_to_string(next_line.from..next_line.to);
-
-    let replacement = format!("{}\n{}", next_text, curr_text);
-    let from = curr_start_line.from;
-    let to = next_line.to;
-
-    let shift = (next_line.length + 1) as usize;
-    let new_anchor = main_range.anchor + shift;
-    let new_head = main_range.head + shift;
+    changes.sort_by_key(|c| c.from);
+    let cs = ferrum_state::change::ChangeSet::of_specs(&changes, doc.len_chars());
+    let assoc = if forward { 1 } else { -1 };
+    let new_selection = state.selection().map(cs.desc(), assoc);
 
     Some(
         TransactionSpec::new()
-            .with_change(ChangeSpec::replace(from, to, replacement))
-            .with_selection(EditorSelection::single(new_anchor, new_head)),
+            .with_changes(changes)
+            .with_selection(new_selection),
     )
 }
 
 /// Duplicate current line above (Shift+Alt+Up).
 pub fn copy_line_up(state: &EditorState) -> Option<TransactionSpec> {
-    let doc = state.doc();
-    let main_range = state.selection().main();
-    let start_line = doc.line_at(main_range.from());
-    let end_line = doc.line_at(main_range.to());
-
-    let text = doc.slice_to_string(start_line.from..end_line.to);
-    let insert_text = format!("{}\n", text);
-
-    Some(
-        TransactionSpec::new()
-            .with_change(ChangeSpec::insert(start_line.from, insert_text))
-            .with_selection(state.selection().clone()),
-    )
+    copy_line(state, false)
 }
 
 /// Duplicate current line below (Shift+Alt+Down).
 pub fn copy_line_down(state: &EditorState) -> Option<TransactionSpec> {
-    let doc = state.doc();
-    let main_range = state.selection().main();
-    let start_line = doc.line_at(main_range.from());
-    let end_line = doc.line_at(main_range.to());
+    copy_line(state, true)
+}
 
-    let text = doc.slice_to_string(start_line.from..end_line.to);
-    let insert_text = format!("\n{}", text);
+/// Delete all whitespace directly before a line end from the document.
+pub fn delete_trailing_whitespace(state: &EditorState) -> Option<TransactionSpec> {
+    let mut changes: Vec<ChangeSpec> = Vec::new();
+    let num_lines = state.doc().len_lines();
+    for line_idx in 0..num_lines {
+        let line = state.doc().line(line_idx);
+        let line_text = state.doc().slice_to_string(line.from..line.to);
+        let trimmed = line_text.trim_end_matches(|c: char| c == ' ' || c == '\t');
+        let trailing_len = line_text.chars().count() - trimmed.chars().count();
+        if trailing_len > 0 {
+            let from = line.to - trailing_len;
+            changes.push(ChangeSpec::delete(from, line.to));
+        }
+    }
+    if changes.is_empty() {
+        None
+    } else {
+        Some(TransactionSpec::new().with_changes(changes))
+    }
+}
 
-    let shift = text.chars().count() + 1;
-    let new_anchor = main_range.anchor + shift;
-    let new_head = main_range.head + shift;
+/// Replace each selection range with a line break, leaving the cursor
+/// on the line before the break.
+pub fn split_line(state: &EditorState) -> Option<TransactionSpec> {
+    let res = state.change_by_range(|range| {
+        RangeResult::range(SelectionRange::cursor(range.from()))
+            .with_changes(ChangeSpec::replace(range.from(), range.to(), "\n"))
+    });
+    Some(res.into_spec())
+}
 
-    Some(
-        TransactionSpec::new()
-            .with_change(ChangeSpec::insert(end_line.to, insert_text))
-            .with_selection(EditorSelection::single(new_anchor, new_head)),
-    )
+/// Replace the selection with a newline and the same amount of
+/// indentation as the line above.
+pub fn insert_newline_keep_indent(state: &EditorState) -> Option<TransactionSpec> {
+    let res = state.change_by_range(|range| {
+        let line = state.doc().line_at(range.from());
+        let line_text = state.doc().slice_to_string(line.from..line.to);
+        let indent: String = line_text
+            .chars()
+            .take_while(|&c| c == ' ' || c == '\t')
+            .collect();
+        let insert = format!("\n{}", indent);
+        let new_pos = range.from() + 1 + indent.chars().count();
+        RangeResult::range(SelectionRange::cursor(new_pos))
+            .with_changes(ChangeSpec::replace(range.from(), range.to(), insert))
+    });
+    Some(res.into_spec())
+}
+
+/// Flip the characters before and after the cursor(s).
+pub fn transpose_chars(state: &EditorState) -> Option<TransactionSpec> {
+    let doc_len = state.doc().len_chars();
+    let res = state.change_by_range(|range| {
+        if !range.is_empty() || range.from() == 0 || range.from() == doc_len {
+            return RangeResult::range(*range);
+        }
+        let pos = range.from();
+        let line = state.doc().line_at(pos);
+        let line_text = state.doc().slice_to_string(line.from..line.to);
+
+        let from = if pos == line.from {
+            pos - 1
+        } else {
+            find_cluster_break(&line_text, pos - line.from, false) + line.from
+        };
+        let to = if pos == line.to {
+            pos + 1
+        } else {
+            find_cluster_break(&line_text, pos - line.from, true) + line.from
+        };
+
+        let insert = format!(
+            "{}{}",
+            state.doc().slice_to_string(pos..to),
+            state.doc().slice_to_string(from..pos)
+        );
+        RangeResult::range(SelectionRange::cursor(to))
+            .with_changes(ChangeSpec::replace(from, to, insert))
+    });
+
+    if res.changes.is_empty() {
+        None
+    } else {
+        Some(res.into_spec())
+    }
 }
 
 // =========================================================================
