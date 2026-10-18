@@ -369,6 +369,12 @@ impl ChangeSet {
         iter_changes(&self.desc, Some(&self.inserted), f, individual);
     }
 
+    /// Iterates over unchanged sections (gaps) in the document.
+    /// `f(pos_a, pos_b, length)`
+    pub fn iter_gaps<F: FnMut(usize, usize, usize)>(&self, f: F) {
+        self.desc.iter_gaps(f);
+    }
+
     /// Applies this change set to a `Text` document in a single linear pass.
     pub fn apply(&self, doc: &Text) -> Text {
         if self.length() != doc.len_chars() {

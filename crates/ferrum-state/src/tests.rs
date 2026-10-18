@@ -509,4 +509,227 @@ fn test_cm6_selection_preserves_direction_of_last_range() {
     assert_eq!(s.join(","), "10/0");
 }
 
+#[test]
+fn test_cm6_changeset_clipping_and_compose() {
+    let doc10 = Text::from("0123456789");
+
+    // CM6 test-change.ts: can apply composed sets
+    let set_a = ChangeSet::of_specs(
+        &[ChangeSpec::insert(2, "hi"), ChangeSpec::insert(8, "ok")],
+        10,
+    );
+    let set_b = ChangeSet::of_specs(
+        &[
+            ChangeSpec::insert(4, "!"),
+            ChangeSpec::delete(6, 8),
+            ChangeSpec::insert(12, "?"),
+        ],
+        14,
+    );
+    assert_eq!(set_a.compose(&set_b).apply(&doc10).to_string(), "01hi!2367ok?89");
+
+    // CM6 test-change.ts: can clip inserted strings on compose
+    let set1 = ChangeSet::of_specs(
+        &[ChangeSpec::insert(2, "abc"), ChangeSpec::insert(4, "def")],
+        10,
+    );
+    let set2 = ChangeSet::of_spec(ChangeSpec::delete(4, 8), 16);
+    assert_eq!(set1.compose(&set2).apply(&doc10).to_string(), "01abef456789");
+}
+
+#[test]
+fn test_cm6_changeset_apply_mapped_sets() {
+    let doc10 = Text::from("0123456789");
+    let set0 = ChangeSet::of_specs(
+        &[ChangeSpec::insert(5, "hi"), ChangeSpec::delete(8, 10)],
+        10,
+    );
+    let set1 = ChangeSet::of_specs(
+        &[ChangeSpec::insert(10, "ok"), ChangeSpec::delete(6, 7)],
+        10,
+    );
+    let mapped = set1.map(set0.desc(), false);
+    assert_eq!(set0.compose(&mapped).apply(&doc10).to_string(), "01234hi57ok");
+}
+
+#[test]
+fn test_cm6_changeset_iteration() {
+    let set = ChangeSet::of_specs(
+        &[ChangeSpec::insert(4, "ok"), ChangeSpec::delete(6, 8)],
+        10,
+    );
+    let mut result_changes: Vec<(usize, usize, usize, usize, String)> = Vec::new();
+    set.iter_changes(
+        |from_a, to_a, from_b, to_b, inserted| {
+            result_changes.push((from_a, to_a, from_b, to_b, inserted.to_string()));
+        },
+        false,
+    );
+    assert_eq!(
+        result_changes,
+        vec![
+            (4, 4, 4, 6, "ok".to_string()),
+            (6, 8, 8, 8, "".to_string()),
+        ]
+    );
+
+    let mut result_gaps: Vec<(usize, usize, usize)> = Vec::new();
+    set.iter_gaps(|from_a, to_a, len| {
+        result_gaps.push((from_a, to_a, len));
+    });
+    assert_eq!(
+        result_gaps,
+        vec![
+            (0, 0, 4),
+            (4, 6, 2),
+            (8, 8, 2),
+        ]
+    );
+}
+
+#[test]
+fn test_cm6_change_desc_map_pos_replacements() {
+    // Ported from CM6 test-change.ts lines 165-179
+    let set = mk("2 2:2 2");
+    assert_eq!(set.map_pos(2, 1, MapMode::Simple), Some(2));
+    assert_eq!(set.map_pos(2, -1, MapMode::Simple), Some(2));
+    assert_eq!(set.map_pos(2, -1, MapMode::TrackDel), Some(2));
+    assert_eq!(set.map_pos(2, -1, MapMode::TrackBefore), Some(2));
+    assert_eq!(set.map_pos(2, -1, MapMode::TrackAfter), None);
+
+    assert_eq!(set.map_pos(3, -1, MapMode::Simple), Some(2));
+    assert_eq!(set.map_pos(3, 1, MapMode::Simple), Some(4));
+    assert_eq!(set.map_pos(3, -1, MapMode::TrackDel), None);
+    assert_eq!(set.map_pos(3, -1, MapMode::TrackBefore), None);
+    assert_eq!(set.map_pos(3, -1, MapMode::TrackAfter), None);
+
+    assert_eq!(set.map_pos(4, 1, MapMode::Simple), Some(4));
+    assert_eq!(set.map_pos(4, -1, MapMode::Simple), Some(4));
+    assert_eq!(set.map_pos(4, -1, MapMode::TrackDel), Some(4));
+    assert_eq!(set.map_pos(4, -1, MapMode::TrackBefore), None);
+    assert_eq!(set.map_pos(4, -1, MapMode::TrackAfter), Some(4));
+
+    let set2 = mk("0:1 2:2 0:1");
+    assert_eq!(set2.map_pos(0, -1, MapMode::Simple), Some(0));
+    assert_eq!(set2.map_pos(0, 1, MapMode::Simple), Some(1));
+    assert_eq!(set2.map_pos(1, -1, MapMode::Simple), Some(1));
+    assert_eq!(set2.map_pos(1, 1, MapMode::Simple), Some(3));
+    assert_eq!(set2.map_pos(2, -1, MapMode::Simple), Some(3));
+    assert_eq!(set2.map_pos(2, 1, MapMode::Simple), Some(4));
+
+    let set3 = mk("2:2 2:2");
+    assert_eq!(set3.map_pos(2, -1, MapMode::Simple), Some(2));
+    assert_eq!(set3.map_pos(2, 1, MapMode::Simple), Some(2));
+}
+
+#[test]
+fn test_cm6_changeset_property_invariants() {
+    // Deterministic LCG for reproducible pseudo-random generation across test runs
+    struct Lcg(u64);
+    impl Lcg {
+        fn next_u32(&mut self) -> u32 {
+            self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
+            (self.0 >> 32) as u32
+        }
+        fn gen_range(&mut self, max: usize) -> usize {
+            if max == 0 { 0 } else { (self.next_u32() as usize) % max }
+        }
+        fn gen_str(&mut self, len: usize) -> String {
+            (0..len).map(|_| (b'a' + (self.gen_range(26) as u8)) as char).collect()
+        }
+        fn gen_change(&mut self, doc_len: usize) -> ChangeSpec {
+            if doc_len == 0 || self.gen_range(3) == 0 {
+                let from = self.gen_range(doc_len + 1);
+                let ins_len = self.gen_range(5) + 1;
+                let ins = self.gen_str(ins_len);
+                ChangeSpec::insert(from, ins.as_str())
+            } else {
+                let from = self.gen_range(doc_len);
+                let to_len = self.gen_range(5) + 1;
+                let to = std::cmp::min(from + to_len, doc_len);
+                let is_empty = self.gen_range(2) != 0;
+                let ins = if is_empty {
+                    String::new()
+                } else {
+                    let ins_len = self.gen_range(2) + 1;
+                    self.gen_str(ins_len)
+                };
+                ChangeSpec::replace(from, to, ins.as_str())
+            }
+        }
+        fn gen_changes(&mut self, doc_len: usize, count: usize) -> Vec<ChangeSpec> {
+            let mut changes = Vec::with_capacity(count);
+            for _ in 0..count {
+                changes.push(self.gen_change(doc_len));
+            }
+            changes
+        }
+    }
+
+    let mut rng = Lcg(123456789);
+
+    // 1. Compose is associative: (A . B) . C == A . (B . C)
+    for _ in 0..50 {
+        let size = rng.gen_range(20) + 1;
+        let doc_str = rng.gen_str(size);
+        let doc = Text::from(doc_str);
+        let cnt_a = rng.gen_range(4) + 1;
+        let changes_a = rng.gen_changes(size, cnt_a);
+        let a = ChangeSet::of_specs(&changes_a, size);
+
+        let cnt_b = rng.gen_range(4) + 1;
+        let changes_b = rng.gen_changes(a.new_length(), cnt_b);
+        let b = ChangeSet::of_specs(&changes_b, a.new_length());
+
+        let cnt_c = rng.gen_range(4) + 1;
+        let changes_c = rng.gen_changes(b.new_length(), cnt_c);
+        let c = ChangeSet::of_specs(&changes_c, b.new_length());
+
+        let left = a.compose(&b).compose(&c);
+        let right = a.compose(&b.compose(&c));
+        assert_eq!(left.apply(&doc).to_string(), right.apply(&doc).to_string());
+    }
+
+    // 2. Compose produces same result as individual changes applied in sequence
+    for _ in 0..50 {
+        let size = rng.gen_range(20) + 1;
+        let doc_str = rng.gen_str(size);
+        let doc = Text::from(doc_str);
+        let cnt_a = rng.gen_range(4) + 1;
+        let changes_a = rng.gen_changes(size, cnt_a);
+        let a = ChangeSet::of_specs(&changes_a, size);
+
+        let cnt_b = rng.gen_range(4) + 1;
+        let changes_b = rng.gen_changes(a.new_length(), cnt_b);
+        let b = ChangeSet::of_specs(&changes_b, a.new_length());
+
+        let seq = b.apply(&a.apply(&doc));
+        let comp = a.compose(&b).apply(&doc);
+        assert_eq!(seq.to_string(), comp.to_string());
+    }
+
+    // 3. Operational Transformation confluence property TP1:
+    // A . B.map(A, false) == B . A.map(B, true)
+    for _ in 0..50 {
+        let size = rng.gen_range(20) + 1;
+        let doc_str = rng.gen_str(size);
+        let doc = Text::from(doc_str);
+        let cnt_a = rng.gen_range(3) + 1;
+        let a_specs = rng.gen_changes(size, cnt_a);
+        let cnt_b = rng.gen_range(3) + 1;
+        let b_specs = rng.gen_changes(size, cnt_b);
+
+        let set_a = ChangeSet::of_specs(&a_specs, size);
+        let set_b = ChangeSet::of_specs(&b_specs, size);
+
+        let set_a1 = set_a.map(set_b.desc(), true);
+        let set_b1 = set_b.map(set_a.desc(), false);
+
+        let ab = set_a.compose(&set_b1);
+        let ba = set_b.compose(&set_a1);
+
+        assert_eq!(ab.apply(&doc).to_string(), ba.apply(&doc).to_string());
+    }
+}
+
 
