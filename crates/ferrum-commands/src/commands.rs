@@ -927,67 +927,59 @@ pub fn copy_line_down(state: &EditorState) -> Option<TransactionSpec> {
 // Indentation and Formatting
 // =========================================================================
 
-/// Indent selected lines by 4 spaces (Tab / Ctrl+]).
-pub fn indent_more(state: &EditorState) -> Option<TransactionSpec> {
-    let doc = state.doc();
-    let mut changes = Vec::new();
-
-    let mut lines_seen = std::collections::BTreeSet::new();
-    for range in state.selection().ranges() {
-        let start_line = doc.char_to_line(range.from());
-        let end_line = doc.char_to_line(range.to());
-        for line_idx in start_line..=end_line {
-            lines_seen.insert(line_idx);
+fn change_by_selected_line<F>(state: &EditorState, mut f: F) -> Option<TransactionSpec>
+where
+    F: FnMut(&ferrum_state::text::Line, &mut Vec<ChangeSpec>, &SelectionRange),
+{
+    let mut at_line = -1isize;
+    let res = state.change_by_range(|range| {
+        let mut changes = Vec::new();
+        let mut pos = range.from();
+        while pos <= range.to() {
+            let line = state.doc().line_at(pos);
+            let line_num = line.number as isize;
+            if line_num > at_line && (range.is_empty() || range.to() > line.from) {
+                f(&line, &mut changes, range);
+                at_line = line_num;
+            }
+            pos = line.to + 1;
         }
-    }
+        let cs = ferrum_state::change::ChangeSet::of_specs(&changes, state.doc().len_chars());
+        let anchor = cs.map_pos(range.anchor, 1);
+        let head = cs.map_pos(range.head, 1);
+        let new_range = if range.is_inverted() {
+            SelectionRange::new(anchor.max(head), anchor.min(head))
+        } else {
+            SelectionRange::new(anchor.min(head), anchor.max(head))
+        };
+        RangeResult::range(new_range).with_changes(changes)
+    });
 
-    for line_idx in lines_seen {
-        let line = doc.line(line_idx);
-        changes.push(ChangeSpec::insert(line.from, "    "));
-    }
-
-    if changes.is_empty() {
+    if res.changes.is_empty() {
         None
     } else {
-        Some(TransactionSpec::new().with_changes(changes))
+        Some(res.into_spec())
     }
+}
+
+/// Indent selected lines by 4 spaces (Tab / Ctrl+]).
+pub fn indent_more(state: &EditorState) -> Option<TransactionSpec> {
+    change_by_selected_line(state, |line, changes, _| {
+        changes.push(ChangeSpec::insert(line.from, "    "));
+    })
 }
 
 /// Un-indent selected lines by up to 4 spaces (Shift+Tab / Ctrl+[).
 pub fn indent_less(state: &EditorState) -> Option<TransactionSpec> {
-    let doc = state.doc();
-    let mut changes = Vec::new();
-
-    let mut lines_seen = std::collections::BTreeSet::new();
-    for range in state.selection().ranges() {
-        let start_line = doc.char_to_line(range.from());
-        let end_line = doc.char_to_line(range.to());
-        for line_idx in start_line..=end_line {
-            lines_seen.insert(line_idx);
-        }
-    }
-
-    for line_idx in lines_seen {
-        let line = doc.line(line_idx);
-        let line_text = doc.slice_to_string(line.from..line.to);
-        let spaces_to_remove = line_text
-            .chars()
-            .take(4)
-            .take_while(|c| *c == ' ')
-            .count();
-
-        if spaces_to_remove > 0 {
-            changes.push(ChangeSpec::delete(line.from, line.from + spaces_to_remove));
-        } else if line_text.starts_with('\t') {
+    change_by_selected_line(state, |line, changes, _| {
+        let text = state.doc().slice_to_string(line.from..line.to);
+        let space_count = text.chars().take(4).take_while(|c| *c == ' ').count();
+        if space_count > 0 {
+            changes.push(ChangeSpec::delete(line.from, line.from + space_count));
+        } else if text.starts_with('\t') {
             changes.push(ChangeSpec::delete(line.from, line.from + 1));
         }
-    }
-
-    if changes.is_empty() {
-        None
-    } else {
-        Some(TransactionSpec::new().with_changes(changes))
-    }
+    })
 }
 
 /// Insert a newline preserving current line indentation (Enter).

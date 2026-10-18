@@ -14,7 +14,7 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub struct RangeResult {
     pub range: SelectionRange,
-    pub changes: Option<ChangeSpec>,
+    pub changes: Option<Changes>,
     pub effects: Vec<StateEffect>,
 }
 
@@ -28,9 +28,9 @@ impl RangeResult {
         }
     }
 
-    /// Attaches a change specification to this range result.
-    pub fn with_changes(mut self, changes: ChangeSpec) -> Self {
-        self.changes = Some(changes);
+    /// Attaches changes to this range result.
+    pub fn with_changes(mut self, changes: impl Into<Changes>) -> Self {
+        self.changes = Some(changes.into());
         self
     }
 
@@ -159,7 +159,7 @@ impl EditorState {
         let sel = &self.selection;
         let result1 = f(&sel.ranges()[0]);
         let mut changes = match result1.changes {
-            Some(spec) => ChangeSet::of_spec(spec, self.doc.len_chars()),
+            Some(c) => c.to_changeset(self.doc.len_chars()),
             None => ChangeSet::empty(self.doc.len_chars()),
         };
         let mut ranges = vec![result1.range];
@@ -168,7 +168,7 @@ impl EditorState {
         for i in 1..sel.ranges().len() {
             let result = f(&sel.ranges()[i]);
             let new_changes = match result.changes {
-                Some(spec) => ChangeSet::of_spec(spec, self.doc.len_chars()),
+                Some(c) => c.to_changeset(self.doc.len_chars()),
                 None => ChangeSet::empty(self.doc.len_chars()),
             };
             let new_mapped = new_changes.map(changes.desc(), false);

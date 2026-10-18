@@ -143,62 +143,62 @@ impl EditorSelection {
     }
 
     /// Creates an `EditorSelection` from an arbitrary list of ranges and a primary index.
-    /// Automatically sorts ranges by `from` and merges overlapping/touching ranges.
-    pub fn create(ranges: Vec<SelectionRange>, main_index: usize) -> Self {
+    /// Automatically sorts ranges by `from` and merges overlapping ranges matching CodeMirror 6.
+    pub fn create(mut ranges: Vec<SelectionRange>, mut main_index: usize) -> Self {
         if ranges.is_empty() {
             return Self::cursor(0);
         }
 
-        // Tag each range with its original index so we can track the main selection
-        let mut tagged: Vec<(usize, SelectionRange)> = ranges
-            .into_iter()
-            .enumerate()
-            .collect();
-
-        tagged.sort_by_key(|(_, r)| (r.from(), r.to()));
-
-        let mut merged: SmallVec<[SelectionRange; 1]> = SmallVec::new();
-        let mut new_main = 0;
-
-        for (orig_idx, range) in tagged {
-            if let Some(last) = merged.last_mut() {
-                // If overlapping or touching (and at least one is non-empty)
-                if range.from() <= last.to() {
-                    let from = min(last.from(), range.from());
-                    let to = max(last.to(), range.to());
-
-                    // Preserve direction of the active/main range
-                    let (anchor, head) = if orig_idx == main_index {
-                        if range.is_inverted() { (to, from) } else { (from, to) }
-                    } else if last.is_inverted() {
-                        (to, from)
-                    } else {
-                        (from, to)
-                    };
-
-                    *last = SelectionRange {
-                        anchor,
-                        head,
-                        goal_column: if orig_idx == main_index { range.goal_column } else { last.goal_column },
-                        assoc: if orig_idx == main_index { range.assoc } else { last.assoc },
-                    };
-
-                    if orig_idx == main_index {
-                        new_main = merged.len() - 1;
-                    }
-                    continue;
-                }
+        // Fast-path: check if ranges are already strictly sorted and non-overlapping
+        let mut sorted = true;
+        let mut pos = 0;
+        for (i, r) in ranges.iter().enumerate() {
+            if i > 0 && (if r.is_empty() { r.from() <= pos } else { r.from() < pos }) {
+                sorted = false;
+                break;
             }
-
-            if orig_idx == main_index {
-                new_main = merged.len();
-            }
-            merged.push(range);
+            pos = r.to();
         }
 
+        if sorted {
+            let clamped_main = main_index.min(ranges.len().saturating_sub(1));
+            return Self {
+                ranges: ranges.into(),
+                main_index: clamped_main,
+            };
+        }
+
+        // Normalization path (CM6 algorithm):
+        let main = ranges[main_index.min(ranges.len() - 1)];
+        ranges.sort_by_key(|r| r.from());
+        main_index = ranges.iter().position(|r| *r == main).unwrap_or(0);
+
+        let mut i = 1;
+        while i < ranges.len() {
+            let range = ranges[i];
+            let prev = ranges[i - 1];
+            if if range.is_empty() { range.from() <= prev.to() } else { range.from() < prev.to() } {
+                let from = prev.from();
+                let to = max(range.to(), prev.to());
+                if i <= main_index {
+                    main_index = main_index.saturating_sub(1);
+                }
+                let merged_range = if range.anchor > range.head {
+                    SelectionRange::new(to, from)
+                } else {
+                    SelectionRange::new(from, to)
+                };
+                ranges[i - 1] = merged_range;
+                ranges.remove(i);
+            } else {
+                i += 1;
+            }
+        }
+
+        let clamped_main = main_index.min(ranges.len().saturating_sub(1));
         Self {
-            ranges: merged,
-            main_index: new_main,
+            ranges: ranges.into(),
+            main_index: clamped_main,
         }
     }
 

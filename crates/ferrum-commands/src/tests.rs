@@ -270,3 +270,71 @@ fn test_copy_line_commands() {
     assert_eq!(next_state.doc().to_string(), "alpha\nalpha\nbeta");
 }
 
+fn mk_state(spec: &str) -> std::sync::Arc<EditorState> {
+    let mut doc = String::new();
+    let mut ranges = Vec::new();
+    let chars: Vec<char> = spec.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] == '|' {
+            ranges.push(SelectionRange::cursor(doc.chars().count()));
+            i += 1;
+        } else if chars[i] == '<' {
+            let start = doc.chars().count();
+            i += 1;
+            while i < chars.len() && chars[i] != '>' {
+                doc.push(chars[i]);
+                i += 1;
+            }
+            if i < chars.len() && chars[i] == '>' {
+                i += 1;
+            }
+            let end = doc.chars().count();
+            ranges.push(SelectionRange::new(start, end));
+        } else {
+            doc.push(chars[i]);
+            i += 1;
+        }
+    }
+    EditorState::create(EditorStateConfig {
+        doc: Some(Text::from(doc)),
+        selection: if ranges.is_empty() {
+            None
+        } else {
+            Some(EditorSelection::create(ranges, 0))
+        },
+        extensions: None,
+    })
+}
+
+fn state_str(state: &EditorState) -> String {
+    let mut doc = state.doc().to_string();
+    let ranges = state.selection().ranges();
+    for range in ranges.iter().rev() {
+        if range.is_empty() {
+            let idx = range.from();
+            let byte_idx = doc.char_indices().nth(idx).map(|(b, _)| b).unwrap_or(doc.len());
+            doc.insert(byte_idx, '|');
+        } else {
+            let to_idx = range.to();
+            let to_byte = doc.char_indices().nth(to_idx).map(|(b, _)| b).unwrap_or(doc.len());
+            doc.insert(to_byte, '>');
+            let from_idx = range.from();
+            let from_byte = doc.char_indices().nth(from_idx).map(|(b, _)| b).unwrap_or(doc.len());
+            doc.insert(from_byte, '<');
+        }
+    }
+    doc
+}
+
+#[test]
+fn test_cm6_indent_more_command() {
+    let state = mk_state("on<e\ntwo\n>three");
+    let spec = indent_more(&state).unwrap();
+    let next_state = state.apply(state.update(spec).unwrap());
+    // Direct parity with CM6 test-commands.ts:
+    // "ignores lines if a range selection ends directly at their start"
+    assert_eq!(state_str(&next_state), "    on<e\n    two\n>three");
+}
+
+
