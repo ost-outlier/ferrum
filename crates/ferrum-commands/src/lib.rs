@@ -1,7 +1,13 @@
 //! `ferrum-commands` - Text editing commands and keymaps for the Ferrum editor engine.
 
 pub mod commands;
+pub mod comment;
 pub mod history;
+
+pub use comment::{
+    block_comment, block_uncomment, line_comment, line_uncomment, toggle_block_comment,
+    toggle_block_comment_by_line, toggle_comment, toggle_line_comment, BlockToken, CommentTokens,
+};
 
 pub use commands::{
     copy_line_down, copy_line_up, cursor_char_left, cursor_char_right, cursor_doc_end,

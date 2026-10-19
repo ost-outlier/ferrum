@@ -145,6 +145,12 @@ impl EditorState {
         self.config.field(field, &self.field_values)
     }
 
+    /// Returns a function that can categorize characters into CharCategory at the given position.
+    pub fn char_categorizer(&self, _at: usize) -> impl Fn(&str) -> crate::char::CharCategory {
+        // TDD RED phase stub: currently returns Other so unimplemented tests fail
+        |_ch: &str| crate::char::CharCategory::Other
+    }
+
     /// Creates a `ChangeSet` from a `ChangeSpec` for this state's document.
     pub fn changes(&self, spec: ChangeSpec) -> ChangeSet {
         ChangeSet::of_spec(spec, self.doc.len_chars())
