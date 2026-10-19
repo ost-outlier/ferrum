@@ -62,11 +62,11 @@ fn main() {
     let theme_compartment = Compartment::new();
 
     // Syntax decorations: keyword "fn", string literal, and comment
-    let initial_decorations = DecorationSet::from_vec(vec![
+    let initial_decorations = DecorationSet::of_sorted(vec![
         Decoration::mark(0..2, "keyword.declaration"),
         Decoration::mark(18..31, "string.quoted"),
         Decoration::mark(35..75, "comment.line"),
-    ]);
+    ], true).unwrap();
 
     // Initial document with Unicode grapheme clusters and emojis
     let initial_code = "fn greeting() -> &str {\n    \"Hello, 🌍!\"; // Ferrum 🦀 editor engine\n}\n";
@@ -189,7 +189,7 @@ fn render_view(view: &EditorView) {
         let decos: Vec<&str> = rendered
             .decorations
             .iter()
-            .map(|d| match &d.kind {
+            .map(|d| match &d.decoration.kind {
                 ferrum::view::DecorationKind::Mark { tag } => *tag,
                 ferrum::view::DecorationKind::Replace { widget_id } => widget_id.unwrap_or("widget"),
                 _ => "deco",

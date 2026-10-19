@@ -5,6 +5,7 @@ pub mod change;
 pub mod char;
 pub mod config;
 pub mod facet;
+pub mod rangeset;
 pub mod selection;
 pub mod state;
 pub mod text;
@@ -20,6 +21,7 @@ pub use facet::{
     AnyFacet, AnyStateField, Compartment, CompartmentId, Extension, Facet, FacetId, Prec,
     StateField, StateFieldId,
 };
+pub use rangeset::{Chunk, Range, RangeSet, RangeSetBuilder, RangeSetUpdate, RangeValue};
 pub use selection::{EditorSelection, SelectionRange};
 pub use state::{ChangeByRangeResult, EditorState, EditorStateConfig, RangeResult};
 pub use text::{Line, Text};

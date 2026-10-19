@@ -19,6 +19,14 @@ pub struct ViewUpdate {
     pub selection_changed: bool,
 }
 
+/// A decoration applied across character boundaries `[from, to]`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecoratedRange {
+    pub from: usize,
+    pub to: usize,
+    pub decoration: Decoration,
+}
+
 /// Abstract representation of a rendered line within the viewport.
 #[derive(Debug, Clone)]
 pub struct RenderedLine {
@@ -27,7 +35,7 @@ pub struct RenderedLine {
     /// Text slice of this line.
     pub text: String,
     /// All decorations intersecting this line.
-    pub decorations: Vec<Decoration>,
+    pub decorations: Vec<DecoratedRange>,
 }
 
 /// The core view controller of the editor.
@@ -85,17 +93,20 @@ impl EditorView {
         })
     }
 
-    /// Collects and aggregates all decorations that intersect the current viewport.
-    pub fn visible_decorations(&self) -> Vec<Decoration> {
+    /// Collects and aggregates all decorations that intersect the current viewport via canonical `RangeSet.between`.
+    pub fn visible_decorations(&self) -> Vec<DecoratedRange> {
         let sets = self.state.facet(&DECORATIONS);
         let mut visible = Vec::new();
 
         for set in sets {
-            for deco in set.iter() {
-                if self.viewport.intersects(deco.from, deco.to) {
-                    visible.push(deco.clone());
-                }
-            }
+            set.between(self.viewport.from, self.viewport.to, |from, to, deco| {
+                visible.push(DecoratedRange {
+                    from,
+                    to,
+                    decoration: deco.clone(),
+                });
+                true
+            });
         }
 
         visible.sort_by_key(|d| (d.from, d.to));
@@ -117,7 +128,7 @@ impl EditorView {
             let line_text = doc.slice_to_string(line_info.from..line_info.to);
 
             // Filter decorations intersecting this line
-            let line_decos: Vec<Decoration> = all_decos
+            let line_decos: Vec<DecoratedRange> = all_decos
                 .iter()
                 .filter(|d| !(d.to < line_info.from || d.from > line_info.to))
                 .cloned()

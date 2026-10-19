@@ -778,15 +778,23 @@ pub fn delete_group_forward(state: &EditorState) -> Option<TransactionSpec> {
     delete_by_group(state, true)
 }
 
-/// Delete from cursor to the start of the current line.
-pub fn delete_to_line_start(state: &EditorState) -> Option<TransactionSpec> {
-    let res = state.change_by_range(|r| {
-        let line = state.doc().line_at(r.head);
-        if r.head > line.from {
-            RangeResult::range(SelectionRange::cursor(line.from))
-                .with_changes(ChangeSpec::delete(line.from, r.head))
+fn delete_by(
+    state: &EditorState,
+    by: impl Fn(&EditorState, &SelectionRange) -> usize,
+) -> Option<TransactionSpec> {
+    let res = state.change_by_range(|range| {
+        let mut from = range.from();
+        let mut to = range.to();
+        if from == to {
+            let towards = by(state, range);
+            from = std::cmp::min(from, towards);
+            to = std::cmp::max(to, towards);
+        }
+        if from == to {
+            RangeResult::range(*range)
         } else {
-            RangeResult::range(*r)
+            RangeResult::range(SelectionRange::cursor(from))
+                .with_changes(ChangeSpec::delete(from, to))
         }
     });
 
@@ -797,23 +805,30 @@ pub fn delete_to_line_start(state: &EditorState) -> Option<TransactionSpec> {
     }
 }
 
-/// Delete from cursor to the end of the current line.
-pub fn delete_to_line_end(state: &EditorState) -> Option<TransactionSpec> {
-    let res = state.change_by_range(|r| {
-        let line = state.doc().line_at(r.head);
-        if r.head < line.to {
-            RangeResult::range(SelectionRange::cursor(r.head))
-                .with_changes(ChangeSpec::delete(r.head, line.to))
+/// Delete from cursor to the start of the current line.
+/// If cursor is at line start, deletes preceding line break.
+pub fn delete_to_line_start(state: &EditorState) -> Option<TransactionSpec> {
+    delete_by(state, |s, range| {
+        let line = s.doc().line_at(range.head);
+        if range.head > line.from {
+            line.from
         } else {
-            RangeResult::range(*r)
+            range.head.saturating_sub(1)
         }
-    });
+    })
+}
 
-    if res.changes.is_empty() {
-        None
-    } else {
-        Some(res.into_spec())
-    }
+/// Delete from cursor to the end of the current line.
+/// If cursor is at line end, deletes following line break.
+pub fn delete_to_line_end(state: &EditorState) -> Option<TransactionSpec> {
+    delete_by(state, |s, range| {
+        let line = s.doc().line_at(range.head);
+        if range.head < line.to {
+            line.to
+        } else {
+            std::cmp::min(s.doc().len_chars(), range.head + 1)
+        }
+    })
 }
 
 /// Delete whole line including its newline delimiter (Ctrl+Shift+K).
@@ -1179,12 +1194,22 @@ pub fn select_all(state: &EditorState) -> Option<TransactionSpec> {
     )
 }
 
-/// Select the entire line under the cursor (Alt+L).
+/// Expand the selection to cover entire lines.
 pub fn select_line(state: &EditorState) -> Option<TransactionSpec> {
-    let main = state.selection().main();
-    let line = state.doc().line_at(main.head);
+    let doc_len = state.doc().len_chars();
+    let ranges: Vec<SelectionRange> = selected_line_blocks(state)
+        .into_iter()
+        .map(|block| {
+            let to = std::cmp::min(block.to + 1, doc_len);
+            SelectionRange::new(block.from, to)
+        })
+        .collect();
+
     Some(
-        TransactionSpec::new().with_selection(EditorSelection::single(line.from, line.to)),
+        TransactionSpec::new().with_selection(EditorSelection::create(
+            ranges,
+            state.selection().main_index(),
+        )),
     )
 }
 

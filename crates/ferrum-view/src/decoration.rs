@@ -1,5 +1,8 @@
+//! Text decorations and `DecorationSet` based directly on the canonical CodeMirror 6 `RangeSet` model.
+
 use ferrum_state::facet::Facet;
-use std::ops::Range;
+use ferrum_state::rangeset::{Range, RangeSet, RangeValue};
+use std::ops::Range as StdRange;
 use std::sync::LazyLock;
 
 /// The type and attributes of a decoration applied to text.
@@ -16,80 +19,65 @@ pub enum DecorationKind {
     /// Injects an inline widget at a specific point without replacing characters.
     Widget {
         widget_id: &'static str,
-        side: i8, // -1 before position, 1 after position
+        side: i32, // Negative before position, positive after position
     },
 }
 
-/// A decoration attached to a character range in the document.
+/// A decoration value attached to a character range in the document.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Decoration {
-    pub from: usize,
-    pub to: usize,
     pub kind: DecorationKind,
+}
+
+impl RangeValue for Decoration {
+    fn start_side(&self) -> i32 {
+        match &self.kind {
+            DecorationKind::Widget { side, .. } => *side,
+            _ => 0,
+        }
+    }
+
+    fn end_side(&self) -> i32 {
+        match &self.kind {
+            DecorationKind::Widget { side, .. } => *side,
+            _ => 0,
+        }
+    }
+
+    fn point(&self) -> bool {
+        match &self.kind {
+            DecorationKind::Widget { .. } => true,
+            DecorationKind::Replace { .. } => true,
+            DecorationKind::Mark { .. } => false,
+        }
+    }
 }
 
 impl Decoration {
     /// Creates an inline styling mark across the range.
-    pub fn mark(range: Range<usize>, tag: &'static str) -> Self {
-        Self {
-            from: range.start,
-            to: range.end,
+    pub fn mark(range: StdRange<usize>, tag: &'static str) -> Range<Self> {
+        Range::new(range.start, range.end, Self {
             kind: DecorationKind::Mark { tag },
-        }
+        })
     }
 
     /// Replaces the range of text with an optional widget or hides it.
-    pub fn replace(range: Range<usize>, widget_id: Option<&'static str>) -> Self {
-        Self {
-            from: range.start,
-            to: range.end,
+    pub fn replace(range: StdRange<usize>, widget_id: Option<&'static str>) -> Range<Self> {
+        Range::new(range.start, range.end, Self {
             kind: DecorationKind::Replace { widget_id },
-        }
+        })
     }
 
     /// Injects a widget at a specific point.
-    pub fn widget(pos: usize, widget_id: &'static str, side: i8) -> Self {
-        Self {
-            from: pos,
-            to: pos,
+    pub fn widget(pos: usize, widget_id: &'static str, side: i32) -> Range<Self> {
+        Range::new(pos, pos, Self {
             kind: DecorationKind::Widget { widget_id, side },
-        }
+        })
     }
 }
 
-/// An ordered set of decorations covering a document.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct DecorationSet {
-    decorations: Vec<Decoration>,
-}
-
-impl DecorationSet {
-    /// Creates an empty decoration set.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Creates a decoration set from a vector of decorations, ensuring they are sorted.
-    pub fn from_vec(mut decos: Vec<Decoration>) -> Self {
-        decos.sort_by_key(|d| (d.from, d.to));
-        Self { decorations: decos }
-    }
-
-    /// Returns an iterator over all decorations.
-    pub fn iter(&self) -> impl Iterator<Item = &Decoration> {
-        self.decorations.iter()
-    }
-
-    /// Returns true if there are no decorations in this set.
-    pub fn is_empty(&self) -> bool {
-        self.decorations.is_empty()
-    }
-
-    /// Returns the number of decorations in this set.
-    pub fn len(&self) -> usize {
-        self.decorations.len()
-    }
-}
+/// In CodeMirror 6, `DecorationSet` is an alias / specialization of `RangeSet<Decoration>`.
+pub type DecorationSet = RangeSet<Decoration>;
 
 /// Facet that collects decoration sets from all contributing extensions.
 pub static DECORATIONS: LazyLock<Facet<DecorationSet, Vec<DecorationSet>>> =

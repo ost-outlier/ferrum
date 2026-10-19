@@ -11,8 +11,8 @@ pub use ferrum_view as view;
 // Convenient top-level re-exports:
 pub use ferrum_state::{
     ChangeSet, ChangeSpec, Compartment, EditorSelection, EditorState, EditorStateConfig,
-    Extension, Facet, Prec, SelectionRange, StateEffect, StateField, Text, Transaction,
-    TransactionSpec,
+    Extension, Facet, Prec, Range, RangeSet, RangeSetBuilder, RangeValue, SelectionRange,
+    StateEffect, StateField, Text, Transaction, TransactionSpec,
 };
 
 #[cfg(feature = "view")]

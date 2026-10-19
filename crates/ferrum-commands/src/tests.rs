@@ -727,5 +727,43 @@ fn test_cm6_history_back_and_forth_multiple_times() {
     }
 }
 
+#[test]
+fn test_cm6_select_line() {
+    fn test(from: &str, expected: &str) {
+        let state = mk_state(from);
+        let next_state = run_cmd(&state, select_line);
+        assert_eq!(state_str(&next_state), expected);
+    }
 
+    test("hello|\nworld", "<hello\n>world");
+    test("hello\nwor|ld", "hello\n<world>");
+    test("one|\ntwo|\nthree", "<one\ntwo\n>three");
+    test("one|\ntwo\nthree|", "<one\n>two\n<three>");
+    test("on<e\ntw>o\nthree", "<one\ntwo\n>three");
+}
 
+#[test]
+fn test_cm6_delete_to_line_start() {
+    fn test(from: &str, expected: &str) {
+        let state = mk_state(from);
+        let next_state = run_cmd(&state, delete_to_line_start);
+        assert_eq!(state_str(&next_state), expected);
+    }
+
+    test("hello |world", "|world");
+    test("line1\n|line2", "line1|line2");
+    test("hello <wor>ld", "hello |ld");
+}
+
+#[test]
+fn test_cm6_delete_to_line_end() {
+    fn test(from: &str, expected: &str) {
+        let state = mk_state(from);
+        let next_state = run_cmd(&state, delete_to_line_end);
+        assert_eq!(state_str(&next_state), expected);
+    }
+
+    test("hello |world\nline2", "hello |\nline2");
+    test("line1|\nline2", "line1|line2");
+    test("hello <wor>ld", "hello |ld");
+}
