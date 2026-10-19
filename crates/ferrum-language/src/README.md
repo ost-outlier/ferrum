@@ -1,6 +1,6 @@
-# `ferrum-language`
+# ferrum-language / src — API Reference
 
-Language support infrastructure for the Ferrum text editor engine. Direct architectural port of CodeMirror 6's `@codemirror/language` and `@codemirror/streamparser`.
+Language support infrastructure for the Ferrum text editor engine. Direct architectural port of CodeMirror 6's [`@codemirror/language`](https://code.haverbeke.berlin/codemirror/language) and [`@codemirror/streamparser`](https://code.haverbeke.berlin/codemirror/streamparser).
 
 ## Features and Subsystems
 

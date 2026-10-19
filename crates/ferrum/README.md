@@ -3,25 +3,29 @@
 [![Crates.io](https://img.shields.io/badge/crates.io-v0.1.0-orange.svg)](https://crates.io)
 [![Documentation](https://docs.rs/ferrum/badge.svg)](https://docs.rs/ferrum)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE-MIT)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE-APACHE)
 
 > **The extensible, embeddable text editor engine for Rust.**  
-> Built with 1:1 mathematical and architectural parity to **CodeMirror 6**, designed for native desktop, mobile, embedded environments, and WebAssembly.
+> Built with 1:1 mathematical and architectural parity to [CodeMirror 6](https://code.haverbeke.berlin/codemirror), designed for native desktop, mobile, embedded environments, and WebAssembly.
 
 ---
 
 ## Overview
 
-`ferrum` is the unified facade crate that brings together the core components of the Ferrum editor suite:
-- **`state`** (`ferrum-state`): Core immutable data structures, rope text, operational transformation, facets, and multi-selection normalization.
-- **`commands`** (`ferrum-commands`, feature `"commands"`): Pure state commands, grapheme navigation, line manipulation, indentation, and transactional undo/redo history.
-- **`view`** (`ferrum-view`, feature `"view"`): Viewport virtualization, interval-tree `DecorationSet`, and spatial queries.
+`ferrum` is the unified facade umbrella crate that brings together the core components of the Ferrum editor suite:
+- **`state`** ([`ferrum-state`](../ferrum-state)): Core immutable data structures, rope text, operational transformation (OT), facets, and multi-selection normalization.
+- **`commands`** ([`ferrum-commands`](../ferrum-commands), feature `"commands"`): Pure state editing commands, grapheme navigation, line manipulation, indentation, commenting, and transactional undo/redo history.
+- **`language`** ([`ferrum-language`](../ferrum-language), feature `"language"`): Syntax trees, contextual indentation engine, stream parser tokenization, and bracket matching.
+- **`view`** ([`ferrum-view`](../ferrum-view), feature `"view"`): HeightMap B-Tree virtualization, `DecorationSet`, viewport calculation, and visual update contracts.
+
+---
 
 ## Quickstart
 
 Add `ferrum` to your `Cargo.toml`:
 ```toml
 [dependencies]
-ferrum = { version = "0.1.0", features = ["commands", "view"] }
+ferrum = { version = "0.1.0", features = ["commands", "view", "language"] }
 ```
 
 ### Complete Code Example
@@ -29,7 +33,7 @@ ferrum = { version = "0.1.0", features = ["commands", "view"] }
 ```rust
 use ferrum::{
     default_keymap, history, insert_text, Decoration, DecorationKind, DecorationSet,
-    EditorState, EditorStateConfig, EditorView, Text, KEYMAP,
+    EditorState, EditorStateConfig, EditorView, HistoryConfig, Text, KEYMAP,
 };
 
 fn main() {
@@ -39,7 +43,7 @@ fn main() {
         selection: None,
         extensions: Some(vec![
             KEYMAP.of(default_keymap()),
-            history(),
+            history(HistoryConfig::default()),
         ]),
     });
 
@@ -47,10 +51,13 @@ fn main() {
     let mut view = EditorView::new(state);
 
     // 3. Attach syntax decorations
-    let decorations = DecorationSet::of_sorted(vec![
-        Decoration::new(0, 2, DecorationKind::Mark { class: "keyword" }),
-        Decoration::new(3, 7, DecorationKind::Mark { class: "function" }),
-    ]);
+    let decorations = DecorationSet::of_sorted(
+        vec![
+            Decoration::new(0, 2, DecorationKind::Mark { class: "keyword" }),
+            Decoration::new(3, 7, DecorationKind::Mark { class: "function" }),
+        ],
+        false,
+    ).unwrap();
     view.set_decorations(decorations);
 
     // 4. Dispatch a document modification
@@ -62,18 +69,27 @@ fn main() {
 
 ---
 
-## Workspace Subcrates
+## Workspace Architecture by Logical Groups
 
-- [`ferrum-state`](../ferrum-state): Core functional data structures and transaction engine.
-- [`ferrum-commands`](../ferrum-commands): Editing commands, keymaps, and transactional history.
-- [`ferrum-view`](../ferrum-view): Abstract viewport virtualization and decorations.
-- [`ferrum-view-gpui`](../ferrum-view-gpui): GPU-accelerated desktop window bridge powered by GPUI.
+Ferrum is divided into focused, single-responsibility crates organized by architectural layer:
+
+1. **Core Foundation (Zero UI, Pure Rust, MIT)**:
+   - [`ferrum-state`](../ferrum-state): Port of `@codemirror/state` (Document model, OT Changesets, RangeSet, Facets).
+   - [`ferrum-commands`](../ferrum-commands): Port of `@codemirror/commands` (Navigation, Deletions, History, Comments).
+   - [`ferrum-language`](../ferrum-language): Port of `@codemirror/language` & `@codemirror/streamparser`.
+   - [`ferrum-view`](../ferrum-view): Port of `@codemirror/view` (HeightMap B-Tree, Viewport virtualization, Decorations).
+
+2. **Hardware-Accelerated Bridges**:
+   - [`ferrum-view-gpui`](../ferrum-view-gpui): GPU window adapter powered by GPUI (Metal, Vulkan, DirectX).
+
+3. **Unified Facade**:
+   - [`ferrum`](crates/ferrum): High-level facade with configurable feature flags.
 
 ---
 
 ## License
 
-Dual-licensed under either of:
+Dual-licensed under either:
 - MIT License ([LICENSE-MIT](https://github.com/your-org/ferrum/blob/main/LICENSE-MIT))
 - Apache License, Version 2.0 ([LICENSE-APACHE](https://github.com/your-org/ferrum/blob/main/LICENSE-APACHE))
 
