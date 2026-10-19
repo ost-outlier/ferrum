@@ -44,8 +44,23 @@ It operates as a hermetically isolated rendering bridge:
 
 Launch the interactive GPU editor window:
 ```bash
-cargo run --example poc_editor
+cargo run -p ferrum-view-gpui --example gui_editor
 ```
+
+---
+
+## Native Text Layout & Edge Cases Roadmap
+
+Because Ferrum and CodeMirror 6 index logical document positions by Unicode characters (codepoints in the Rope), while native GPU text shapers (GPUI / HarfBuzz) operate on raw UTF-8 memory byte slices, `ferrum-view-gpui` maintains a strict bidirectional translation layer (`char_to_byte_offset` and `byte_to_char_offset`).
+
+### Layout Edge Cases Mapped for Future Implementation:
+1. **Physical Tab Stops (`\t`)**: Synchronizing GPU glyph advancement widths with the state's `tab_size` configuration.
+2. **Soft Line Wrapping**: 1-to-N mapping between logical buffer lines and multiple wrapped visual lines, updating click hit-testing and vertical caret navigation across visual rows.
+3. **Bidirectional Text (Bidi / RTL)**: Visual selection painting and cursor movement across mixed LTR/RTL scripts (Arabic, Hebrew).
+4. **Complex Grapheme Clusters & Font Fallbacks**: Measuring widths for multi-character ZWJ emoji sequences and handling fallback fonts when primary fonts lack specific glyphs.
+5. **IME (Input Method Editor)**: Support for pre-edit composition states for CJK (Chinese, Japanese, Korean) text and dead keys before committing transactions.
+
+When implementing each capability, deep empirical investigations will be conducted with comprehensive unit tests in `ferrum-view-gpui`.
 
 ---
 
