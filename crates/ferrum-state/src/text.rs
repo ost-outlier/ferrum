@@ -82,8 +82,27 @@ impl Text {
         self.rope.byte_to_char(byte_idx)
     }
 
+    /// Creates a `Text` document from an array of line strings.
+    pub fn of<S: AsRef<str>>(lines: &[S]) -> Self {
+        let joined: String = lines
+            .iter()
+            .map(|s| s.as_ref())
+            .collect::<Vec<_>>()
+            .join("\n");
+        Self::from_str(&joined)
+    }
+
+    /// Retrieves information about a 1-indexed line number (CM6 convention).
+    /// Panics with "Invalid line" if line number is 0 or exceeds total lines.
+    pub fn line(&self, number: usize) -> Line {
+        if number == 0 || number > self.len_lines() {
+            panic!("Invalid line: {}", number);
+        }
+        self.line_by_index(number - 1)
+    }
+
     /// Retrieves information about a 0-indexed line.
-    pub fn line(&self, line_idx: usize) -> Line {
+    pub fn line_by_index(&self, line_idx: usize) -> Line {
         let line_idx = line_idx.min(self.len_lines().saturating_sub(1));
         let from = self.rope.line_to_char(line_idx);
         let line_slice = self.rope.line(line_idx);
@@ -91,10 +110,12 @@ impl Text {
 
         // Calculate `to` excluding trailing newline characters (\r, \n)
         let mut text_len = len_chars;
-        let line_str = line_slice.to_string();
+        let mut line_str = line_slice.to_string();
         if line_str.ends_with("\r\n") {
+            line_str.truncate(line_str.len() - 2);
             text_len = text_len.saturating_sub(2);
         } else if line_str.ends_with('\n') || line_str.ends_with('\r') {
+            line_str.truncate(line_str.len() - 1);
             text_len = text_len.saturating_sub(1);
         }
 
@@ -103,13 +124,18 @@ impl Text {
             from,
             to: from + text_len,
             length: text_len,
+            text: line_str,
         }
     }
 
     /// Retrieves the line that contains the given character position.
+    /// Panics with "Invalid position" if position exceeds document length.
     pub fn line_at(&self, char_pos: usize) -> Line {
+        if char_pos > self.len_chars() {
+            panic!("Invalid position: {}", char_pos);
+        }
         let line_idx = self.char_to_line(char_pos);
-        self.line(line_idx)
+        self.line_by_index(line_idx)
     }
 
     /// Returns a slice of the text as a String.
@@ -117,6 +143,11 @@ impl Text {
         let start = range.start.min(self.len_chars());
         let end = range.end.min(self.len_chars()).max(start);
         self.rope.slice(start..end).to_string()
+    }
+
+    /// Returns a slice of the text as a String between from and to.
+    pub fn slice_string(&self, from: usize, to: usize) -> String {
+        self.slice_to_string(from..to)
     }
 
     /// Returns a new `Text` replacing the given character range with `replacement`.
@@ -197,7 +228,7 @@ impl From<String> for Text {
 }
 
 /// Represents line coordinates and extent in a document.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Line {
     /// 1-indexed line number (CM6 convention).
     pub number: usize,
@@ -207,4 +238,6 @@ pub struct Line {
     pub to: usize,
     /// Length of the line text in characters (excluding newline delimiter).
     pub length: usize,
+    /// The text of the line (excluding newline delimiter).
+    pub text: String,
 }

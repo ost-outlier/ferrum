@@ -20,6 +20,16 @@ pub struct CommentTokens {
     pub line: Option<String>,
 }
 
+use ferrum_state::facet::Facet;
+use std::sync::LazyLock;
+
+/// Facet to configure comment tokens for a document or language.
+pub static COMMENT_TOKENS: LazyLock<Facet<CommentTokens, CommentTokens>> = LazyLock::new(|| {
+    Facet::define(|inputs: &[CommentTokens]| {
+        inputs.last().cloned().unwrap_or_default()
+    })
+});
+
 /// Comment or uncomment the current selection. Will use line comments if available,
 /// otherwise falling back to block comments.
 pub fn toggle_comment(_state: &EditorState) -> Option<TransactionSpec> {

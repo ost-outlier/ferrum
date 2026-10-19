@@ -543,10 +543,10 @@ pub fn cursor_line_up(state: &EditorState) -> Option<TransactionSpec> {
             if curr_line_idx == 0 {
                 return SelectionRange::cursor(0);
             }
-            let curr_line = state.doc().line(curr_line_idx);
+            let curr_line = state.doc().line_by_index(curr_line_idx);
             let goal_col = r.goal_column.unwrap_or(r.head - curr_line.from);
 
-            let prev_line = state.doc().line(curr_line_idx - 1);
+            let prev_line = state.doc().line_by_index(curr_line_idx - 1);
             let target_char = prev_line.from + min(goal_col, prev_line.length);
             SelectionRange::cursor(target_char).with_goal_column(Some(goal_col))
         })
@@ -570,13 +570,13 @@ pub fn cursor_line_down(state: &EditorState) -> Option<TransactionSpec> {
         .map(|r| {
             let curr_line_idx = state.doc().char_to_line(r.head);
             if curr_line_idx + 1 >= max_lines {
-                let curr_line = state.doc().line(curr_line_idx);
+                let curr_line = state.doc().line_by_index(curr_line_idx);
                 return SelectionRange::cursor(curr_line.to);
             }
-            let curr_line = state.doc().line(curr_line_idx);
+            let curr_line = state.doc().line_by_index(curr_line_idx);
             let goal_col = r.goal_column.unwrap_or(r.head - curr_line.from);
 
-            let next_line = state.doc().line(curr_line_idx + 1);
+            let next_line = state.doc().line_by_index(curr_line_idx + 1);
             let target_char = next_line.from + min(goal_col, next_line.length);
             SelectionRange::cursor(target_char).with_goal_column(Some(goal_col))
         })
@@ -601,10 +601,10 @@ pub fn select_line_up(state: &EditorState) -> Option<TransactionSpec> {
             if curr_line_idx == 0 {
                 return SelectionRange::new(r.anchor, 0);
             }
-            let curr_line = state.doc().line(curr_line_idx);
+            let curr_line = state.doc().line_by_index(curr_line_idx);
             let goal_col = r.goal_column.unwrap_or(r.head - curr_line.from);
 
-            let prev_line = state.doc().line(curr_line_idx - 1);
+            let prev_line = state.doc().line_by_index(curr_line_idx - 1);
             let target_char = prev_line.from + min(goal_col, prev_line.length);
             SelectionRange::new(r.anchor, target_char).with_goal_column(Some(goal_col))
         })
@@ -628,13 +628,13 @@ pub fn select_line_down(state: &EditorState) -> Option<TransactionSpec> {
         .map(|r| {
             let curr_line_idx = state.doc().char_to_line(r.head);
             if curr_line_idx + 1 >= max_lines {
-                let curr_line = state.doc().line(curr_line_idx);
+                let curr_line = state.doc().line_by_index(curr_line_idx);
                 return SelectionRange::new(r.anchor, curr_line.to);
             }
-            let curr_line = state.doc().line(curr_line_idx);
+            let curr_line = state.doc().line_by_index(curr_line_idx);
             let goal_col = r.goal_column.unwrap_or(r.head - curr_line.from);
 
-            let next_line = state.doc().line(curr_line_idx + 1);
+            let next_line = state.doc().line_by_index(curr_line_idx + 1);
             let target_char = next_line.from + min(goal_col, next_line.length);
             SelectionRange::new(r.anchor, target_char).with_goal_column(Some(goal_col))
         })
@@ -841,9 +841,9 @@ pub fn delete_line(state: &EditorState) -> Option<TransactionSpec> {
         let start_line = doc.char_to_line(range.from());
         let end_line = doc.char_to_line(range.to());
 
-        let from = doc.line(start_line).from;
+        let from = doc.line_by_index(start_line).from;
         let to = if end_line + 1 < doc.len_lines() {
-            doc.line(end_line + 1).from
+            doc.line_by_index(end_line + 1).from
         } else {
             doc.len_chars()
         };
@@ -1012,7 +1012,7 @@ pub fn delete_trailing_whitespace(state: &EditorState) -> Option<TransactionSpec
     let mut changes: Vec<ChangeSpec> = Vec::new();
     let num_lines = state.doc().len_lines();
     for line_idx in 0..num_lines {
-        let line = state.doc().line(line_idx);
+        let line = state.doc().line_by_index(line_idx);
         let line_text = state.doc().slice_to_string(line.from..line.to);
         let trimmed = line_text.trim_end_matches(|c: char| c == ' ' || c == '\t');
         let trailing_len = line_text.chars().count() - trimmed.chars().count();
@@ -1151,6 +1151,16 @@ pub fn indent_less(state: &EditorState) -> Option<TransactionSpec> {
             changes.push(ChangeSpec::delete(line.from, line.from + 1));
         }
     })
+}
+
+/// Auto-indent the selected lines or current line based on syntax/service.
+pub fn indent_selection(_state: &EditorState) -> Option<TransactionSpec> {
+    None
+}
+
+/// Insert a tab or spaces up to the next tab stop.
+pub fn insert_tab(_state: &EditorState) -> Option<TransactionSpec> {
+    None
 }
 
 /// Insert a newline preserving current line indentation (Enter).

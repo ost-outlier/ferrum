@@ -1,7 +1,7 @@
 use crate::commands::{
-    delete_group_backward, delete_group_forward, delete_to_line_end, delete_to_line_start,
-    delete_trailing_whitespace, indent_less, indent_more, insert_newline_keep_indent,
-    move_line_down, move_line_up, select_line, split_line, transpose_chars,
+    delete_group_backward, delete_group_forward, delete_trailing_whitespace, indent_less,
+    indent_more, indent_selection, insert_newline_and_indent, insert_newline_keep_indent,
+    move_line_down, move_line_up,
 };
 use ferrum_state::selection::{EditorSelection, SelectionRange};
 use ferrum_state::state::{EditorState, EditorStateConfig};
@@ -84,210 +84,363 @@ fn run_cmd(
     state.clone()
 }
 
-// -------------------------------------------------------------------------
-// indentMore
-// -------------------------------------------------------------------------
-
-#[test]
-fn test_cm6_indent_more() {
-    fn test(from: &str, expected: &str) {
-        let state = mk_state(from);
-        let next = run_cmd(&state, indent_more);
-        assert_eq!(state_str(&next), expected);
-    }
-
-    test("on<e\ntwo\n>three", "    on<e\n    two\n>three");
-    test("one\ntwo|\nthree", "one\n    two|\nthree");
-    test("one\n<two\nthree>", "one\n    <two\n    three>");
+fn test_cmd(
+    from: &str,
+    expected: &str,
+    cmd: impl Fn(&EditorState) -> Option<ferrum_state::transaction::TransactionSpec>,
+) {
+    let st = mk_state(from);
+    let next = run_cmd(&st, cmd);
+    assert_eq!(state_str(&next), expected);
 }
 
 // -------------------------------------------------------------------------
-// indentLess
+// indentMore (4 tests)
 // -------------------------------------------------------------------------
 
 #[test]
-fn test_cm6_indent_less() {
-    fn test(from: &str, expected: &str) {
-        let state = mk_state(from);
-        let next = run_cmd(&state, indent_less);
-        assert_eq!(state_str(&next), expected);
-    }
+fn test_cm6_cmd_indent_more_adds_indentation() {
+    test_cmd("one\ntwo|\nthree", "one\n  two|\nthree", indent_more);
+}
 
-    test("one\n    two|\nthree", "one\ntwo|\nthree");
-    test("one\n  <two\n  three>", "one\n<two\nthree>");
+#[test]
+fn test_cm6_cmd_indent_more_indents_all_lines_in_a_range() {
+    test_cmd("one\n<two\nthree>", "one\n  <two\n  three>", indent_more);
+}
+
+#[test]
+fn test_cm6_cmd_indent_more_doesnt_double_indent_a_given_line() {
+    test_cmd("on|e|\n<two\nth><ree\nfour>", "  on|e|\n  <two\n  th><ree\n  four>", indent_more);
+}
+
+#[test]
+fn test_cm6_cmd_indent_more_ignores_lines_if_a_range_selection_ends_directly_at_their_start() {
+    test_cmd("on<e\ntwo\n>three", "  on<e\n  two\n>three", indent_more);
 }
 
 // -------------------------------------------------------------------------
-// insertNewlineKeepIndent
+// indentLess (5 tests)
 // -------------------------------------------------------------------------
 
 #[test]
-fn test_cm6_insert_newline_keep_indent() {
-    fn test(from: &str, expected: &str) {
-        let state = mk_state(from);
-        let next = run_cmd(&state, insert_newline_keep_indent);
-        assert_eq!(state_str(&next), expected);
-    }
+fn test_cm6_cmd_indent_less_removes_indentation() {
+    test_cmd("one\n  two|\nthree", "one\ntwo|\nthree", indent_less);
+}
 
-    test("  one|", "  one\n  |");
-    test("one|two", "one\n|two");
-    test("if x:\n  one<two\n  three>four", "if x:\n  one\n  |four");
+#[test]
+fn test_cm6_cmd_indent_less_removes_one_unit_of_indentation() {
+    test_cmd("one\n    two|\n     three|", "one\n  two|\n   three|", indent_less);
+}
+
+#[test]
+fn test_cm6_cmd_indent_less_dedents_all_lines_in_a_range() {
+    test_cmd("one\n  <two\n  three>", "one\n<two\nthree>", indent_less);
+}
+
+#[test]
+fn test_cm6_cmd_indent_less_takes_tabs_into_account() {
+    test_cmd("   \tone|\n  \ttwo|", "  one|\n  two|", indent_less);
+}
+
+#[test]
+fn test_cm6_cmd_indent_less_can_split_tabs() {
+    test_cmd("\tone|", "  one|", indent_less);
 }
 
 // -------------------------------------------------------------------------
-// deleteTrailingWhitespace
+// indentSelection (4 tests)
 // -------------------------------------------------------------------------
 
 #[test]
-fn test_cm6_delete_trailing_whitespace() {
-    fn test(from: &str, expected: &str) {
-        let state = mk_state(from);
-        let next = run_cmd(&state, delete_trailing_whitespace);
-        assert_eq!(next.doc().to_string(), expected);
-    }
+fn test_cm6_cmd_indent_selection_auto_indents_the_current_line() {
+    test_cmd("if (0)\nfoo()|", "if (0)\n  foo()|", indent_selection);
+}
 
-    test("foo   ", "foo");
-    test("one\ntwo \nthree   \n   ", "one\ntwo\nthree\n");
-    test("one  \n\ntwo ", "one\n\ntwo");
+#[test]
+fn test_cm6_cmd_indent_selection_moves_the_cursor_ahead_of_the_indentation() {
+    test_cmd("if (0)\n | foo()", "if (0)\n  |foo()", indent_selection);
+}
+
+#[test]
+fn test_cm6_cmd_indent_selection_indents_blocks_of_lines() {
+    test_cmd("if (0) {\n<one\ntwo\nthree>\n}", "if (0) {\n  <one\n  two\n  three>\n}", indent_selection);
+}
+
+#[test]
+fn test_cm6_cmd_indent_selection_includes_previous_indentation_changes_in_relative_indentation() {
+    test_cmd("<{\n{\n{\n{}\n}\n}\n}>", "<{\n  {\n    {\n      {}\n    }\n  }\n}>", indent_selection);
 }
 
 // -------------------------------------------------------------------------
-// deleteGroupForward / Backward
+// insertNewlineKeepIndent (3 tests)
 // -------------------------------------------------------------------------
 
 #[test]
-fn test_cm6_delete_group_forward() {
-    fn test(from: &str, expected: &str) {
-        let state = mk_state(from);
-        let next = run_cmd(&state, delete_group_forward);
-        assert_eq!(state_str(&next), expected);
-    }
-
-    test("one |two three", "one | three");
-    test("one| two three", "one| three");
-    test("one|...two", "one|two");
-    test("one|  \ttwo", "one|two");
-    test("one|\ntwo", "one|two");
-    test("one|two", "one|");
-    test("one|", "one|");
+fn test_cm6_cmd_insert_newline_keep_indent_keeps_indentation() {
+    test_cmd("  one|", "  one\n  |", insert_newline_keep_indent);
 }
 
 #[test]
-fn test_cm6_delete_group_backward() {
-    fn test(from: &str, expected: &str) {
-        let state = mk_state(from);
-        let next = run_cmd(&state, delete_group_backward);
-        assert_eq!(state_str(&next), expected);
-    }
+fn test_cm6_cmd_insert_newline_keep_indent_keeps_zero_indentation() {
+    test_cmd("one|two", "one\n|two", insert_newline_keep_indent);
+}
 
-    test("one two| three", "one | three");
-    test("one two |three", "one |three");
-    test("one...|two", "one|two");
-    test("one \t |two", "one|two");
-    test("one\n|two", "one|two");
-    test("one|two", "|two");
+#[test]
+fn test_cm6_cmd_insert_newline_keep_indent_deletes_the_selection() {
+    test_cmd("if x:\n  one<two\n  three>four", "if x:\n  one\n  |four", insert_newline_keep_indent);
 }
 
 // -------------------------------------------------------------------------
-// moveLineUp / moveLineDown
+// insertNewlineAndIndent (14 tests)
 // -------------------------------------------------------------------------
 
 #[test]
-fn test_cm6_move_line_up() {
-    fn test(from: &str, expected: &str) {
-        let state = mk_state(from);
-        let next = run_cmd(&state, move_line_up);
-        assert_eq!(state_str(&next), expected);
-    }
-
-    test("one\ntwo|\nthree", "two|\none\nthree");
-    test("one\nt|w|o|\n", "t|w|o|\none\n");
-    test("one\ntwo\nthr<ee\nfour\nfive>\n", "one\nthr<ee\nfour\nfive>\ntwo\n");
-    test("one\n<two\nth>ree\nfo|u<r\nfive>\n", "<two\nth>ree\nfo|u<r\nfive>\none\n");
-    test("one\n<two\nthree\n>four", "<two\nthree\n>one\nfour");
+fn test_cm6_cmd_insert_newline_and_indent_indents_the_new_line() {
+    test_cmd("{|", "{\n  |", insert_newline_and_indent);
 }
 
 #[test]
-fn test_cm6_move_line_down() {
-    fn test(from: &str, expected: &str) {
-        let state = mk_state(from);
-        let next = run_cmd(&state, move_line_down);
-        assert_eq!(state_str(&next), expected);
-    }
+fn test_cm6_cmd_insert_newline_and_indent_can_handle_multiple_selections() {
+    test_cmd("{|\n  foo()|", "{\n  |\n  foo()\n  |", insert_newline_and_indent);
+}
 
-    test("one\ntwo|\nthree", "one\nthree\ntwo|");
-    test("one\nt|w|o|\nthree", "one\nthree\nt|w|o|");
-    test("one\ntwo\nthr<ee\nfour\nfive>\nsix", "one\ntwo\nsix\nthr<ee\nfour\nfive>");
-    test("one\n<two\nth>ree\nfo|u<r\nfive>\nsix\n", "one\nsix\n<two\nth>ree\nfo|u<r\nfive>\n");
-    test("one\n<two\nthree\n>four\n", "one\nfour\n<two\nthree\n>");
-    test("one\n<two\nthree\n>four", "one\nfour\n<two\nthree>");
+#[test]
+fn test_cm6_cmd_insert_newline_and_indent_isnt_confused_by_text_after_the_cursor() {
+    test_cmd("{|two", "{\n  |two", insert_newline_and_indent);
+}
+
+#[test]
+fn test_cm6_cmd_insert_newline_and_indent_clears_empty_lines_before_the_cursor() {
+    test_cmd("    |", "\n|", insert_newline_and_indent);
+}
+
+#[test]
+fn test_cm6_cmd_insert_newline_and_indent_deletes_selected_text() {
+    test_cmd("{<one>two", "{\n  |two", insert_newline_and_indent);
+}
+
+#[test]
+fn test_cm6_cmd_insert_newline_and_indent_can_explode_brackets() {
+    test_cmd("let x = [|]", "let x = [\n  |\n]", insert_newline_and_indent);
+}
+
+#[test]
+fn test_cm6_cmd_insert_newline_and_indent_can_explode_in_indented_positions() {
+    test_cmd("{\n  foo(|)", "{\n  foo(\n    |\n  )", insert_newline_and_indent);
+}
+
+#[test]
+fn test_cm6_cmd_insert_newline_and_indent_can_explode_brackets_with_whitespace() {
+    test_cmd("foo( | )", "foo(\n  |\n)", insert_newline_and_indent);
+}
+
+#[test]
+fn test_cm6_cmd_insert_newline_and_indent_doesnt_try_to_explode_already_exploded_brackets() {
+    test_cmd("foo(\n  |\n)", "foo(\n\n  |\n)", insert_newline_and_indent);
+}
+
+#[test]
+fn test_cm6_cmd_insert_newline_and_indent_doesnt_indent_when_previous_line_lacks_indentation() {
+    test_cmd("foo|", "foo\n|", insert_newline_and_indent);
+}
+
+#[test]
+fn test_cm6_cmd_insert_newline_and_indent_indents_when_previous_line_uses_two_space_indentation() {
+    test_cmd("  foo|", "  foo\n  |", insert_newline_and_indent);
+}
+
+#[test]
+fn test_cm6_cmd_insert_newline_and_indent_indents_when_previous_line_uses_four_space_indentation() {
+    test_cmd("    foo|", "    foo\n    |", insert_newline_and_indent);
+}
+
+#[test]
+fn test_cm6_cmd_insert_newline_and_indent_indents_when_previous_line_uses_tab_indentation() {
+    test_cmd("\tfoo|", "\tfoo\n\t|", insert_newline_and_indent);
+}
+
+#[test]
+fn test_cm6_cmd_insert_newline_and_indent_indents_when_previous_line_uses_tab_indentation_and_short_alignment() {
+    test_cmd("\t  foo|", "\t  foo\n\t  |", insert_newline_and_indent);
 }
 
 // -------------------------------------------------------------------------
-// Line manipulation: splitLine, transposeChars, selectLine, deleteToLineStart/End
+// deleteTrailingWhitespace (3 tests)
 // -------------------------------------------------------------------------
 
 #[test]
-fn test_cm6_split_line() {
-    fn test(from: &str, expected: &str) {
-        let state = mk_state(from);
-        let next = run_cmd(&state, split_line);
-        assert_eq!(state_str(&next), expected);
-    }
-
-    test("one|two", "one|\ntwo");
-    test("<one>two", "|\ntwo");
+fn test_cm6_cmd_delete_trailing_whitespace_deletes_trailing_whitespace() {
+    let st = mk_state("foo   ");
+    let next = run_cmd(&st, delete_trailing_whitespace);
+    assert_eq!(next.doc().to_string(), "foo");
 }
 
 #[test]
-fn test_cm6_transpose_chars() {
-    fn test(from: &str, expected: &str) {
-        let state = mk_state(from);
-        let next = run_cmd(&state, transpose_chars);
-        assert_eq!(state_str(&next), expected);
-    }
-
-    test("ab|cd", "acb|d");
-    test("a|bc", "ba|c");
+fn test_cm6_cmd_delete_trailing_whitespace_checks_multiple_lines() {
+    let st = mk_state("one\ntwo \nthree   \n   ");
+    let next = run_cmd(&st, delete_trailing_whitespace);
+    assert_eq!(next.doc().to_string(), "one\ntwo\nthree\n");
 }
 
 #[test]
-fn test_cm6_select_line() {
-    fn test(from: &str, expected: &str) {
-        let state = mk_state(from);
-        let next = run_cmd(&state, select_line);
-        assert_eq!(state_str(&next), expected);
-    }
+fn test_cm6_cmd_delete_trailing_whitespace_can_handle_empty_lines() {
+    let st = mk_state("one  \n\ntwo ");
+    let next = run_cmd(&st, delete_trailing_whitespace);
+    assert_eq!(next.doc().to_string(), "one\n\ntwo");
+}
 
-    test("hello|\nworld", "<hello\n>world");
-    test("hello\nwor|ld", "hello\n<world>");
-    test("one|\ntwo|\nthree", "<one\ntwo\n>three");
-    test("one|\ntwo\nthree|", "<one\n>two\n<three>");
-    test("on<e\ntw>o\nthree", "<one\ntwo\n>three");
+// -------------------------------------------------------------------------
+// deleteGroupForward (9 tests)
+// -------------------------------------------------------------------------
+
+#[test]
+fn test_cm6_cmd_delete_group_forward_deletes_a_word() {
+    test_cmd("one |two three", "one | three", delete_group_forward);
 }
 
 #[test]
-fn test_cm6_delete_to_line_start() {
-    fn test(from: &str, expected: &str) {
-        let state = mk_state(from);
-        let next = run_cmd(&state, delete_to_line_start);
-        assert_eq!(state_str(&next), expected);
-    }
-
-    test("hello |world", "|world");
-    test("line1\n|line2", "line1|line2");
-    test("hello <wor>ld", "hello |ld");
+fn test_cm6_cmd_delete_group_forward_deletes_a_word_with_leading_space() {
+    test_cmd("one| two three", "one| three", delete_group_forward);
 }
 
 #[test]
-fn test_cm6_delete_to_line_end() {
-    fn test(from: &str, expected: &str) {
-        let state = mk_state(from);
-        let next = run_cmd(&state, delete_to_line_end);
-        assert_eq!(state_str(&next), expected);
-    }
+fn test_cm6_cmd_delete_group_forward_deletes_a_group_of_punctuation() {
+    test_cmd("one|...two", "one|two", delete_group_forward);
+}
 
-    test("hello |world\nline2", "hello |\nline2");
-    test("line1|\nline2", "line1|line2");
-    test("hello <wor>ld", "hello |ld");
+#[test]
+fn test_cm6_cmd_delete_group_forward_deletes_a_group_of_space() {
+    test_cmd("one|  \ttwo", "one|two", delete_group_forward);
+}
+
+#[test]
+fn test_cm6_cmd_delete_group_forward_deletes_a_newline() {
+    test_cmd("one|\ntwo", "one|two", delete_group_forward);
+}
+
+#[test]
+fn test_cm6_cmd_delete_group_forward_stops_deleting_at_a_newline() {
+    test_cmd("one| \n two", "one|\n two", delete_group_forward);
+}
+
+#[test]
+fn test_cm6_cmd_delete_group_forward_stops_deleting_after_a_newline() {
+    test_cmd("one|\n two", "one| two", delete_group_forward);
+}
+
+#[test]
+fn test_cm6_cmd_delete_group_forward_deletes_up_to_the_end_of_the_doc() {
+    test_cmd("one|two", "one|", delete_group_forward);
+}
+
+#[test]
+fn test_cm6_cmd_delete_group_forward_does_nothing_at_the_end_of_the_doc() {
+    test_cmd("one|", "one|", delete_group_forward);
+}
+
+// -------------------------------------------------------------------------
+// deleteGroupBackward (8 tests)
+// -------------------------------------------------------------------------
+
+#[test]
+fn test_cm6_cmd_delete_group_backward_deletes_a_word() {
+    test_cmd("one two| three", "one | three", delete_group_backward);
+}
+
+#[test]
+fn test_cm6_cmd_delete_group_backward_deletes_a_word_with_trailing_space() {
+    test_cmd("one two |three", "one |three", delete_group_backward);
+}
+
+#[test]
+fn test_cm6_cmd_delete_group_backward_deletes_a_group_of_punctuation() {
+    test_cmd("one...|two", "one|two", delete_group_backward);
+}
+
+#[test]
+fn test_cm6_cmd_delete_group_backward_deletes_a_group_of_space() {
+    test_cmd("one \t |two", "one|two", delete_group_backward);
+}
+
+#[test]
+fn test_cm6_cmd_delete_group_backward_deletes_a_newline() {
+    test_cmd("one\n|two", "one|two", delete_group_backward);
+}
+
+#[test]
+fn test_cm6_cmd_delete_group_backward_stops_deleting_at_a_newline() {
+    test_cmd("one \n |two", "one \n|two", delete_group_backward);
+}
+
+#[test]
+fn test_cm6_cmd_delete_group_backward_stops_deleting_after_a_newline() {
+    test_cmd("one \n|two", "one |two", delete_group_backward);
+}
+
+#[test]
+fn test_cm6_cmd_delete_group_backward_deletes_up_to_the_start_of_the_doc() {
+    test_cmd("one|two", "|two", delete_group_backward);
+}
+
+// -------------------------------------------------------------------------
+// moveLineUp (5 tests)
+// -------------------------------------------------------------------------
+
+#[test]
+fn test_cm6_cmd_move_line_up_can_move_a_line_up() {
+    test_cmd("one\ntwo|\nthree", "two|\none\nthree", move_line_up);
+}
+
+#[test]
+fn test_cm6_cmd_move_line_up_preserves_multiple_cursors_on_a_single_line() {
+    test_cmd("one\nt|w|o|\n", "t|w|o|\none\n", move_line_up);
+}
+
+#[test]
+fn test_cm6_cmd_move_line_up_moves_selected_blocks_as_one() {
+    test_cmd("one\ntwo\nthr<ee\nfour\nfive>\n", "one\nthr<ee\nfour\nfive>\ntwo\n", move_line_up);
+}
+
+#[test]
+fn test_cm6_cmd_move_line_up_moves_blocks_made_of_multiple_ranges_as_one() {
+    test_cmd("one\n<two\nth>ree\nfo|u<r\nfive>\n", "<two\nth>ree\nfo|u<r\nfive>\none\n", move_line_up);
+}
+
+#[test]
+fn test_cm6_cmd_move_line_up_does_not_include_a_trailing_line_after_a_range() {
+    test_cmd("one\n<two\nthree\n>four", "<two\nthree\n>one\nfour", move_line_up);
+}
+
+// -------------------------------------------------------------------------
+// moveLineDown (6 tests)
+// -------------------------------------------------------------------------
+
+#[test]
+fn test_cm6_cmd_move_line_down_can_move_a_line_down() {
+    test_cmd("one\ntwo|\nthree", "one\nthree\ntwo|", move_line_down);
+}
+
+#[test]
+fn test_cm6_cmd_move_line_down_preserves_multiple_cursors_on_a_single_line() {
+    test_cmd("one\nt|w|o|\nthree", "one\nthree\nt|w|o|", move_line_down);
+}
+
+#[test]
+fn test_cm6_cmd_move_line_down_moves_selected_blocks_as_one() {
+    test_cmd("one\ntwo\nthr<ee\nfour\nfive>\nsix", "one\ntwo\nsix\nthr<ee\nfour\nfive>", move_line_down);
+}
+
+#[test]
+fn test_cm6_cmd_move_line_down_moves_blocks_made_of_multiple_ranges_as_one() {
+    test_cmd("one\n<two\nth>ree\nfo|u<r\nfive>\nsix\n", "one\nsix\n<two\nth>ree\nfo|u<r\nfive>\n", move_line_down);
+}
+
+#[test]
+fn test_cm6_cmd_move_line_down_does_not_include_a_trailing_line_after_a_range() {
+    test_cmd("one\n<two\nthree\n>four\n", "one\nfour\n<two\nthree\n>", move_line_down);
+}
+
+#[test]
+fn test_cm6_cmd_move_line_down_clips_the_selection_when_moving_to_the_end_of_the_doc() {
+    test_cmd("one\n<two\nthree\n>four", "one\nfour\n<two\nthree>", move_line_down);
 }

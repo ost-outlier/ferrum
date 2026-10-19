@@ -124,7 +124,7 @@ impl EditorView {
                 break;
             }
 
-            let line_info = doc.line(line_idx);
+            let line_info = doc.line_by_index(line_idx);
             let line_text = doc.slice_to_string(line_info.from..line_info.to);
 
             // Filter decorations intersecting this line

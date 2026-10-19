@@ -413,3 +413,38 @@ impl<T: RangeValue> RangeSetBuilder<T> {
         }
     }
 }
+
+/// Trait for receiving comparisons between two sets of ranges across document changes.
+pub trait RangeComparator<T: RangeValue> {
+    fn compare_range(&mut self, from: usize, to: usize, active_a: &[T], active_b: &[T]);
+    fn compare_point(&mut self, from: usize, to: usize, by_a: Option<&T>, by_b: Option<&T>);
+}
+
+/// Trait for receiving non-overlapping active spans or points across a document region.
+pub trait SpanIterator<T: RangeValue> {
+    fn span(&mut self, from: usize, to: usize, active: &[T], open_start: usize);
+    fn point(&mut self, from: usize, to: usize, value: &T, open_start: usize);
+}
+
+impl<T: RangeValue> RangeSet<T> {
+    /// Compares two collections of RangeSets through document changes.
+    pub fn compare<C: RangeComparator<T>>(
+        _old_sets: &[RangeSet<T>],
+        _new_sets: &[RangeSet<T>],
+        _changes: &crate::change::ChangeSet,
+        _comparator: &mut C,
+    ) {
+        // TDD RED phase stub
+    }
+
+    /// Iterates through non-overlapping slices of covering active values.
+    pub fn spans<S: SpanIterator<T>>(
+        _sets: &[RangeSet<T>],
+        _from: usize,
+        _to: usize,
+        _iterator: &mut S,
+        _open_start: usize,
+    ) {
+        // TDD RED phase stub
+    }
+}

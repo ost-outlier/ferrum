@@ -142,7 +142,7 @@ fn test_mouse_word_selection_double_click() {
     use ferrum_state::char::find_word_break;
 
     let doc = Text::from_str("fn hello_world() {}");
-    let line = doc.line(0);
+    let line = doc.line(1);
     let line_text = doc.slice_to_string(line.from..line.to);
 
     // Double click at position 5 (inside "hello_world")

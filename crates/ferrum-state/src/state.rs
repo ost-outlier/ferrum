@@ -8,7 +8,19 @@ use crate::transaction::{
 };
 use std::any::Any;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
+
+static ALLOW_MULTIPLE_SELECTIONS: LazyLock<Facet<bool, bool>> = LazyLock::new(|| {
+    Facet::define_static(|values: &[bool]| values.iter().any(|&v| v))
+});
+
+static TAB_SIZE: LazyLock<Facet<usize, usize>> = LazyLock::new(|| {
+    Facet::define(|values: &[usize]| values.first().copied().unwrap_or(4))
+});
+
+static LINE_SEPARATOR: LazyLock<Facet<String, Option<String>>> = LazyLock::new(|| {
+    Facet::define_static(|values: &[String]| values.first().cloned())
+});
 
 /// Result of running a function on a selection range in `change_by_range`.
 #[derive(Clone, Debug)]
@@ -143,6 +155,21 @@ impl EditorState {
         field: &StateField<Value>,
     ) -> Option<&Value> {
         self.config.field(field, &self.field_values)
+    }
+
+    /// Accessor for the canonical `allowMultipleSelections` facet.
+    pub fn allow_multiple_selections() -> &'static Facet<bool, bool> {
+        &ALLOW_MULTIPLE_SELECTIONS
+    }
+
+    /// Accessor for the canonical `tabSize` facet.
+    pub fn tab_size() -> &'static Facet<usize, usize> {
+        &TAB_SIZE
+    }
+
+    /// Accessor for the canonical `lineSeparator` facet.
+    pub fn line_separator() -> &'static Facet<String, Option<String>> {
+        &LINE_SEPARATOR
     }
 
     /// Returns a function that can categorize characters into CharCategory at the given position.

@@ -191,7 +191,7 @@ fn render_view(view: &EditorView) {
             .iter()
             .map(|d| match &d.decoration.kind {
                 ferrum::view::DecorationKind::Mark { tag } => *tag,
-                ferrum::view::DecorationKind::Replace { widget_id } => widget_id.unwrap_or("widget"),
+                ferrum::view::DecorationKind::Replace { widget_id, .. } => widget_id.unwrap_or("widget"),
                 _ => "deco",
             })
             .collect();

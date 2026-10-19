@@ -85,7 +85,7 @@ impl FerrumEditorView {
         if line_idx >= doc.len_lines() {
             return Some(doc.len_chars());
         }
-        let line = doc.line(line_idx);
+        let line = doc.line_by_index(line_idx);
         let col = if let Some(layout) = self.last_layouts.get(line_idx) {
             let byte_offset = layout.closest_index_for_x(rel_x);
             let line_text = doc.slice_to_string(line.from..line.to);
@@ -114,7 +114,7 @@ impl FerrumEditorView {
                 // If selection is empty, copy the current line
                 let main = state.selection().main();
                 let line_idx = doc.char_to_line(main.head);
-                let line = doc.line(line_idx);
+                let line = doc.line_by_index(line_idx);
                 let mut line_str = doc.slice_to_string(line.from..line.to);
                 line_str.push('\n');
                 line_str
@@ -138,7 +138,7 @@ impl FerrumEditorView {
             if text_parts.is_empty() {
                 let main = state.selection().main();
                 let line_idx = doc.char_to_line(main.head);
-                let line = doc.line(line_idx);
+                let line = doc.line_by_index(line_idx);
                 let mut line_str = doc.slice_to_string(line.from..line.to);
                 line_str.push('\n');
                 cx.write_to_clipboard(ClipboardItem::new_string(line_str));
@@ -188,7 +188,7 @@ impl FerrumEditorView {
                 if event.click_count == 2 {
                     // Double-click: select word
                     let line_idx = doc.char_to_line(pos);
-                    let line = doc.line(line_idx);
+                    let line = doc.line_by_index(line_idx);
                     let line_text = doc.slice_to_string(line.from..line.to);
                     let rel_pos = pos.saturating_sub(line.from);
                     let start_rel = find_word_break(&line_text, rel_pos, false);
@@ -203,7 +203,7 @@ impl FerrumEditorView {
                 } else if event.click_count >= 3 {
                     // Triple-click: select line
                     let line_idx = doc.char_to_line(pos);
-                    let line = doc.line(line_idx);
+                    let line = doc.line_by_index(line_idx);
                     let end = if line_idx + 1 < doc.len_lines() {
                         line.to + 1
                     } else {
@@ -329,7 +329,7 @@ impl Element for EditorCanvasElement {
 
         // 1. Shape each line of text and gutter numbers
         for line_idx in 0..doc.len_lines() {
-            let line_info = doc.line(line_idx);
+            let line_info = doc.line_by_index(line_idx);
             let line_text = doc.slice_to_string(line_info.from..line_info.to);
 
             // Gutter line number
@@ -375,7 +375,7 @@ impl Element for EditorCanvasElement {
             // Caret / Cursor
             let head_line_idx = doc.char_to_line(range.head);
             if let Some(layout) = shaped_lines.get(head_line_idx) {
-                let head_line = doc.line(head_line_idx);
+                let head_line = doc.line_by_index(head_line_idx);
                 let col = range.head.saturating_sub(head_line.from);
                 let head_text = &line_texts[head_line_idx];
                 let byte_col = char_to_byte_offset(head_text, col);
@@ -398,7 +398,7 @@ impl Element for EditorCanvasElement {
 
                 for l_idx in from_line_idx..=to_line_idx {
                     if let Some(layout) = shaped_lines.get(l_idx) {
-                        let line = doc.line(l_idx);
+                        let line = doc.line_by_index(l_idx);
                         let start_col = if l_idx == from_line_idx {
                             range.from().saturating_sub(line.from)
                         } else {
@@ -513,7 +513,7 @@ impl Render for FerrumEditorView {
         let doc = self.view.state().doc();
         let sel = self.view.state().selection().main();
         let line_idx = doc.char_to_line(sel.head);
-        let col_idx = sel.head.saturating_sub(doc.line(line_idx).from);
+        let col_idx = sel.head.saturating_sub(doc.line_by_index(line_idx).from);
 
         div()
             .flex()
