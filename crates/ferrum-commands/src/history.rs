@@ -235,15 +235,15 @@ impl HistoryState {
         user_event: Option<String>,
         new_group_delay: u64,
     ) -> Self {
-        if let Some(last) = self.done.last() {
-            if let Some(last_sel) = last.selections_after.last() {
-                if time.saturating_sub(self.prev_time) < new_group_delay
-                    && user_event == self.prev_user_event
-                    && last_sel.ranges().len() == selection.ranges().len()
-                {
-                    return self.clone();
-                }
-            }
+        let last_sels = self.done.last().map(|e| e.selections_after.as_slice()).unwrap_or(&[]);
+        let is_select_event = user_event.as_deref().map(|ue| ue == "select" || ue.starts_with("select.")).unwrap_or(false);
+        if !last_sels.is_empty()
+            && time.saturating_sub(self.prev_time) < new_group_delay
+            && user_event == self.prev_user_event
+            && is_select_event
+            && eq_selection_shape(last_sels.last().unwrap(), selection)
+        {
+            return self.clone();
         }
         Self {
             done: add_selection_to_branch(&self.done, selection),
@@ -272,7 +272,7 @@ impl HistoryState {
         }
 
         let event = branch.last().unwrap();
-        let selection = event.selections_after.first().cloned().or_else(|| {
+        let selection_for_hist = event.selections_after.first().cloned().or_else(|| {
             event.start_selection.as_ref().map(|s| {
                 if let Some(changes) = &event.changes {
                     s.map(&changes.desc().inverted_desc(), 1)
@@ -283,16 +283,17 @@ impl HistoryState {
         }).unwrap_or_else(|| state.selection().clone());
 
         if only_selection && !event.selections_after.is_empty() {
+            let to_restore = event.selections_after.last().unwrap().clone();
             let mut rest = branch.clone();
             let last = rest.last_mut().unwrap();
             last.selections_after.pop();
             Some(
                 TransactionSpec::new()
-                    .with_selection(selection.clone())
+                    .with_selection(to_restore)
                     .with_annotation(FromHistory {
                         side,
                         rest,
-                        selection: Some(selection),
+                        selection: Some(selection_for_hist),
                     }),
             )
         } else if let Some(changes) = &event.changes {
@@ -309,7 +310,7 @@ impl HistoryState {
                 .with_annotation(FromHistory {
                     side,
                     rest,
-                    selection: Some(selection),
+                    selection: Some(selection_for_hist),
                 });
             if let Some(start_sel) = &event.start_selection {
                 spec = spec.with_selection(start_sel.clone());
@@ -319,6 +320,14 @@ impl HistoryState {
             None
         }
     }
+}
+
+fn eq_selection_shape(a: &EditorSelection, b: &EditorSelection) -> bool {
+    a.ranges().len() == b.ranges().len()
+        && a.ranges()
+            .iter()
+            .zip(b.ranges())
+            .all(|(r1, r2)| r1.is_empty() == r2.is_empty())
 }
 
 fn update_branch(branch: &[HistEvent], to: usize, max_len: usize, new_event: HistEvent) -> Vec<HistEvent> {

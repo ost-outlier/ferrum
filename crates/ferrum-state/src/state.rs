@@ -227,6 +227,17 @@ impl EditorState {
         }
     }
 
+    /// Creates a transaction spec that replaces every selection range with the given text.
+    pub fn replace_selection(&self, text: impl Into<Text>) -> TransactionSpec {
+        let text = text.into();
+        let len = text.len_chars();
+        self.change_by_range(|range| {
+            RangeResult::range(SelectionRange::cursor(range.from() + len))
+                .with_changes(Changes::Single(ChangeSpec::replace(range.from(), range.to(), text.clone())))
+        })
+        .into_spec()
+    }
+
     /// Creates a transaction from a specification.
     /// Runs all registered transaction filters. Returns `None` if any filter rejects the transaction.
     pub fn update(self: &Arc<Self>, spec: TransactionSpec) -> Option<Transaction> {

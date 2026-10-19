@@ -558,10 +558,7 @@ fn test_cm6_hist_31_restores_selection_on_redo() {
         0,
     ))).unwrap();
     state = state.apply(tr_sel);
-    let tr_rep = state.update(TransactionSpec::new().with_changes(ChangeSet::of_specs(
-        &[ChangeSpec::insert(1, "-"), ChangeSpec::insert(3, "-"), ChangeSpec::insert(5, "-")],
-        state.doc().len_chars(),
-    ))).unwrap();
+    let tr_rep = state.update(state.replace_selection("-")).unwrap();
     state = state.apply(tr_rep);
     let tr_rst = state.update(TransactionSpec::new().with_selection(EditorSelection::cursor(0))).unwrap();
     state = state.apply(tr_rst);
@@ -702,9 +699,9 @@ fn test_cm6_hist_40_undoselection_only_changes_selection() {
 fn test_cm6_hist_41_undoselection_can_undo_selection_through_remote_changes() {
     let mut state = mk_state(None, None);
     state = type_text(&state, "hello", None);
+    let selection = state.selection().clone();
     let tr1 = state.update(TransactionSpec::new().with_selection(EditorSelection::single(0, 2))).unwrap();
     state = state.apply(tr1);
-    let selection = state.selection().clone();
     state = receive(&state, "oops", 0, None);
     state = receive(&state, "!", 9, None);
     assert_eq!(state.selection(), &EditorSelection::single(4, 6));
