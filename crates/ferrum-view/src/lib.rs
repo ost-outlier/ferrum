@@ -4,6 +4,7 @@ pub mod decoration;
 pub mod heightmap;
 pub mod view;
 pub mod viewport;
+pub mod viewstate;
 
 pub use decoration::{
     Decoration, DecorationKind, DecorationSet, ReplaceSpec, WidgetSpec, WidgetType, DECORATIONS,
@@ -14,6 +15,7 @@ pub use heightmap::{
 };
 pub use view::{DecoratedRange, EditorView, RenderedLine, ViewUpdate};
 pub use viewport::Viewport;
+pub use viewstate::{PixelRect, ScrollStrategy, ScrollTarget, ViewState, VP_MARGIN};
 
 #[cfg(test)]
 mod tests;

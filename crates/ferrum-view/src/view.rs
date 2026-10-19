@@ -38,68 +38,83 @@ pub struct RenderedLine {
     pub decorations: Vec<DecoratedRange>,
 }
 
+use crate::heightmap::HeightOracle;
+use crate::viewstate::{PixelRect, ViewState};
+
 /// The core view controller of the editor.
 /// Bridges the immutable `EditorState` with rendering surfaces and user interactions.
 pub struct EditorView {
-    state: Arc<EditorState>,
-    viewport: Viewport,
+    pub view_state: ViewState,
 }
 
 impl EditorView {
-    /// Creates a new `EditorView` with the given initial state.
+    /// Creates a new `EditorView` with the given initial state and default geometry.
     pub fn new(state: Arc<EditorState>) -> Self {
-        let len = state.doc().len_chars();
-        let viewport = Viewport::new(state.doc(), 0, len);
-        Self { state, viewport }
+        let oracle = HeightOracle::new(false);
+        let pixel_viewport = PixelRect::new(0.0, 1000.0, 0.0, 800.0);
+        let view_state = ViewState::new(state, oracle, pixel_viewport);
+        Self { view_state }
+    }
+
+    /// Creates an `EditorView` with custom `HeightOracle` metrics and pixel dimensions.
+    pub fn with_oracle(state: Arc<EditorState>, oracle: HeightOracle, pixel_viewport: PixelRect) -> Self {
+        let view_state = ViewState::new(state, oracle, pixel_viewport);
+        Self { view_state }
     }
 
     /// Returns the current `EditorState`.
     pub fn state(&self) -> &Arc<EditorState> {
-        &self.state
+        &self.view_state.state
     }
 
     /// Returns the current visible viewport.
     pub fn viewport(&self) -> &Viewport {
-        &self.viewport
+        &self.view_state.viewport
     }
 
     /// Updates the visible viewport bounds.
     pub fn set_viewport(&mut self, from: usize, to: usize) {
-        self.viewport = Viewport::new(self.state.doc(), from, to);
+        self.view_state.viewport = Viewport::new(self.view_state.state.doc(), from, to);
+    }
+
+    /// Returns a reference to the underlying `ViewState`.
+    pub fn view_state(&self) -> &ViewState {
+        &self.view_state
+    }
+
+    /// Returns a mutable reference to the underlying `ViewState`.
+    pub fn view_state_mut(&mut self) -> &mut ViewState {
+        &mut self.view_state
     }
 
     /// Dispatches a transaction specification, updating the view state.
     /// Returns the resulting `ViewUpdate` if the transaction was accepted.
     pub fn dispatch(&mut self, spec: TransactionSpec) -> Option<ViewUpdate> {
-        let prev_state = self.state.clone();
-        let tr = self.state.update(spec)?;
+        let prev_state = self.view_state.state.clone();
+        let tr = self.view_state.state.update(spec)?;
         let doc_changed = tr.doc_changed();
         let selection_changed = tr.selection().is_some();
 
-        let new_state = self.state.apply(tr);
-        self.state = new_state.clone();
-
-        // Adjust viewport if document changed
-        if doc_changed {
-            self.set_viewport(self.viewport.from, self.viewport.to);
-        }
-
-        Some(ViewUpdate {
+        let new_state = self.view_state.state.apply(tr);
+        let update = ViewUpdate {
             state: new_state,
             prev_state,
             transactions: Vec::new(),
             doc_changed,
             selection_changed,
-        })
+        };
+
+        self.view_state.update(&update, None);
+        Some(update)
     }
 
     /// Collects and aggregates all decorations that intersect the current viewport via canonical `RangeSet.between`.
     pub fn visible_decorations(&self) -> Vec<DecoratedRange> {
-        let sets = self.state.facet(&DECORATIONS);
+        let sets = self.state().facet(&DECORATIONS);
         let mut visible = Vec::new();
 
         for set in sets {
-            set.between(self.viewport.from, self.viewport.to, |from, to, deco| {
+            set.between(self.viewport().from, self.viewport().to, |from, to, deco| {
                 visible.push(DecoratedRange {
                     from,
                     to,
@@ -115,11 +130,11 @@ impl EditorView {
 
     /// Builds the list of lines to be rendered for the current viewport.
     pub fn render_lines(&self) -> Vec<RenderedLine> {
-        let doc = self.state.doc();
+        let doc = self.state().doc();
         let all_decos = self.visible_decorations();
         let mut lines = Vec::new();
 
-        for line_idx in (self.viewport.top_line.saturating_sub(1))..self.viewport.bottom_line {
+        for line_idx in (self.viewport().top_line.saturating_sub(1))..self.viewport().bottom_line {
             if line_idx >= doc.len_lines() {
                 break;
             }

@@ -243,7 +243,53 @@ fn test_char_and_byte_offset_conversion_with_emoji() {
     assert_eq!(char_to_byte_offset(text, 7), 7); // at '🚀'
     assert_eq!(char_to_byte_offset(text, 8), 11); // after '🚀' (jump of 4 bytes)
     assert_eq!(char_to_byte_offset(text, 15), 18); // end of line
-
     assert_eq!(byte_to_char_offset(text, 18), 15);
+}
+
+#[test]
+fn test_virtualized_viewport_on_large_paste_document() {
+    use ferrum_commands::insert_text;
+    use ferrum_view::EditorView;
+
+    let state = EditorState::create(EditorStateConfig {
+        doc: Some(Text::from_str("")),
+        selection: Some(EditorSelection::cursor(0)),
+        extensions: None,
+    });
+
+    let mut view = EditorView::new(state);
+
+    // Simulate pasting 10,000 lines
+    let mut big_text = String::new();
+    for i in 1..=10000 {
+        big_text.push_str(&format!("const value_{} = {};\n", i, i));
+    }
+
+    let paste_spec = insert_text(view.state(), &big_text).expect("Valid insert spec");
+    let update = view.dispatch(paste_spec).expect("Dispatch paste");
+    assert!(update.doc_changed);
+    assert_eq!(view.state().doc().len_lines(), 10001);
+
+    // Initial viewport after paste: must be virtualized and small
+    let vp = view.viewport();
+    assert_eq!(vp.from, 0);
+    let from_line = view.state().doc().char_to_line(vp.from);
+    let to_line = view.state().doc().char_to_line(vp.to);
+    let visible_count = to_line - from_line;
+    assert!(
+        visible_count < 100,
+        "Visible line count after paste must be virtualized, got: {}",
+        visible_count
+    );
+
+    // Scroll down to 20,000px (around line 1428 at 14px/line)
+    view.view_state_mut().set_scroll_top(20000.0);
+    let scrolled_vp = view.viewport();
+    let scrolled_from_line = view.state().doc().char_to_line(scrolled_vp.from);
+    assert!(
+        scrolled_from_line > 1300 && scrolled_from_line < 1500,
+        "Scrolled viewport must be centered near line 1428, got: {}",
+        scrolled_from_line
+    );
 }
 
