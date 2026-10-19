@@ -4,13 +4,18 @@
 pub mod fold;
 pub mod highlight;
 pub mod indent;
+pub mod javascript;
 pub mod language;
 pub mod stream;
 pub mod tree;
 
 pub use fold::{fold_state, FoldEffect, FoldRange, UnfoldEffect, UnfoldRange};
 pub use highlight::Tag;
-pub use indent::{get_indent_unit, get_indentation, indent_string, IndentContext, INDENT_SERVICE, INDENT_UNIT};
+pub use indent::{
+    get_indent_unit, get_indentation, get_indentation_with_context, indent_string, IndentContext,
+    IndentContextOptions, LineDescription, INDENT_SERVICE, INDENT_UNIT,
+};
+pub use javascript::javascript_language;
 pub use language::{ensure_syntax_tree, syntax_tree, Language, LanguageSupport, LANGUAGE};
 pub use stream::{StreamLanguage, StreamParser, StringStream};
 pub use tree::{NodeType, ParseContext, Parser, SyntaxNode, SyntaxTree};

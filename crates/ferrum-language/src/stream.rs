@@ -161,8 +161,8 @@ impl<State: Clone + Send + Sync + 'static> StreamLanguage<State> {
     pub fn extension(&self) -> Extension {
         let parser = self.parser.clone();
         let lang = Language::new("stream", Arc::new(self.clone()));
-        let indent_fn: IndentServiceFn = Arc::new(move |cx: &IndentContext| {
-            let line = cx.state.doc().line_at(cx.pos);
+        let indent_fn: IndentServiceFn = Arc::new(move |cx: &IndentContext, pos: usize| {
+            let line = cx.state.doc().line_at(pos);
             let mut state = parser.start_state(2);
             let mut cur_line_start = 0;
             while cur_line_start < line.from {

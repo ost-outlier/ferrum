@@ -1,13 +1,18 @@
+use ferrum_language::indent::{
+    get_indent_unit, get_indentation_with_context, indent_string, IndentContext,
+    IndentContextOptions, INDENT_UNIT,
+};
 use ferrum_state::change::ChangeSpec;
 use ferrum_state::char::{
     categorize_char, find_cluster_break, find_subword_break, find_word_break, CharCategory,
 };
+use ferrum_state::column::count_column;
 use ferrum_state::facet::Facet;
 use ferrum_state::selection::{EditorSelection, SelectionRange};
 use ferrum_state::state::{EditorState, RangeResult};
 use ferrum_state::transaction::TransactionSpec;
 use std::cmp::min;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 /// Pure command function operating on an `EditorState`.
 /// Returns `Some(TransactionSpec)` if the command produced edits or cursor changes,
@@ -1118,11 +1123,7 @@ where
         let cs = ferrum_state::change::ChangeSet::of_specs(&changes, state.doc().len_chars());
         let anchor = cs.map_pos(range.anchor, 1);
         let head = cs.map_pos(range.head, 1);
-        let new_range = if range.is_inverted() {
-            SelectionRange::new(anchor.max(head), anchor.min(head))
-        } else {
-            SelectionRange::new(anchor.min(head), anchor.max(head))
-        };
+        let new_range = SelectionRange::new(anchor, head);
         RangeResult::range(new_range).with_changes(changes)
     });
 
@@ -1133,48 +1134,240 @@ where
     }
 }
 
-/// Indent selected lines by 4 spaces (Tab / Ctrl+]).
+/// Add a unit of indentation to all selected lines.
 pub fn indent_more(state: &EditorState) -> Option<TransactionSpec> {
+    if state.is_read_only() {
+        return None;
+    }
+    let unit = state.facet(&INDENT_UNIT).clone();
     change_by_selected_line(state, |line, changes, _| {
-        changes.push(ChangeSpec::insert(line.from, "    "));
+        changes.push(ChangeSpec::insert(line.from, unit.clone()));
     })
 }
 
-/// Un-indent selected lines by up to 4 spaces (Shift+Tab / Ctrl+[).
+/// Remove a unit of indentation from all selected lines.
 pub fn indent_less(state: &EditorState) -> Option<TransactionSpec> {
+    if state.is_read_only() {
+        return None;
+    }
+    let tab_size = *state.facet(EditorState::tab_size());
+    let unit_len = get_indent_unit(state);
+
     change_by_selected_line(state, |line, changes, _| {
-        let text = state.doc().slice_to_string(line.from..line.to);
-        let space_count = text.chars().take(4).take_while(|c| *c == ' ').count();
-        if space_count > 0 {
-            changes.push(ChangeSpec::delete(line.from, line.from + space_count));
-        } else if text.starts_with('\t') {
-            changes.push(ChangeSpec::delete(line.from, line.from + 1));
+        let text = &line.text;
+        let space_count = text.chars().take_while(|c| c.is_whitespace()).count();
+        if space_count == 0 {
+            return;
+        }
+        let space: String = text.chars().take(space_count).collect();
+        let col = count_column(&space, tab_size, None);
+        let target = col.saturating_sub(unit_len);
+        let norm = indent_string(state, target);
+
+        let space_chars: Vec<char> = space.chars().collect();
+        let norm_chars: Vec<char> = norm.chars().collect();
+        let mut keep = 0;
+        while keep < space_chars.len() && keep < norm_chars.len() && space_chars[keep] == norm_chars[keep] {
+            keep += 1;
+        }
+
+        let replace_from = line.from + keep;
+        let replace_to = line.from + space_chars.len();
+        let insert_slice: String = norm_chars.into_iter().skip(keep).collect();
+        changes.push(ChangeSpec::replace(replace_from, replace_to, insert_slice));
+    })
+}
+
+/// Auto-indent the selected lines based on syntax indentation services.
+pub fn indent_selection(state: &EditorState) -> Option<TransactionSpec> {
+    if state.is_read_only() {
+        return None;
+    }
+    let updated = Arc::new(std::sync::Mutex::new(std::collections::HashMap::<usize, usize>::new()));
+    let updated_clone = updated.clone();
+    let override_fn: Arc<dyn Fn(usize) -> Option<isize> + Send + Sync> = Arc::new(move |pos: usize| {
+        let map = updated_clone.lock().unwrap();
+        map.get(&pos).map(|&v| v as isize)
+    });
+
+    let context = IndentContext::with_options(
+        state,
+        IndentContextOptions {
+            override_indentation: Some(override_fn),
+            simulate_break: None,
+            simulate_double_break: false,
+        },
+    );
+
+    let updated_for_edit = updated.clone();
+    change_by_selected_line(state, |line, changes, range| {
+        let indent = match get_indentation_with_context(&context, line.from) {
+            Some(i) => {
+                if !line.text.chars().any(|c| !c.is_whitespace()) {
+                    0
+                } else {
+                    i
+                }
+            }
+            None => return,
+        };
+
+        let cur_space_count = line.text.chars().take_while(|c| c.is_whitespace()).count();
+        let cur_space: String = line.text.chars().take(cur_space_count).collect();
+        let norm = indent_string(state, indent);
+
+        if cur_space != norm || range.from() < line.from + cur_space_count {
+            updated_for_edit.lock().unwrap().insert(line.from, indent);
+            changes.push(ChangeSpec::replace(
+                line.from,
+                line.from + cur_space_count,
+                norm,
+            ));
         }
     })
 }
 
-/// Auto-indent the selected lines or current line based on syntax/service.
-pub fn indent_selection(_state: &EditorState) -> Option<TransactionSpec> {
-    None
+/// Insert a tab character at the cursor or, if text is selected, indent the selection.
+pub fn insert_tab(state: &EditorState) -> Option<TransactionSpec> {
+    if state.selection().ranges().iter().any(|r| !r.is_empty()) {
+        indent_more(state)
+    } else {
+        Some(state.replace_selection("\t"))
+    }
 }
 
-/// Insert a tab or spaces up to the next tab stop.
-pub fn insert_tab(_state: &EditorState) -> Option<TransactionSpec> {
-    None
-}
-
-/// Insert a newline preserving current line indentation (Enter).
-pub fn insert_newline_and_indent(state: &EditorState) -> Option<TransactionSpec> {
+fn is_between_brackets(state: &EditorState, pos: usize) -> Option<(usize, usize)> {
+    if pos == 0 || pos >= state.doc().len_chars() {
+        return None;
+    }
     let doc = state.doc();
-    let res = state.change_by_range(|r| {
-        let line = doc.line_at(r.head);
-        let line_text = doc.slice_to_string(line.from..line.to);
-        let indent: String = line_text.chars().take_while(|c| c.is_whitespace()).collect();
-        let insert_str = format!("\n{}", indent);
-        let insert_len = insert_str.chars().count();
+    let line = doc.line_at(pos);
+    let rel_pos = pos.saturating_sub(line.from);
+    let line_chars: Vec<char> = line.text.chars().collect();
 
-        RangeResult::range(SelectionRange::cursor(r.from() + insert_len))
-            .with_changes(ChangeSpec::replace(r.from(), r.to(), insert_str))
+    // Check adjacent brackets first: (), [], {}
+    if rel_pos > 0 && rel_pos < line_chars.len() {
+        let prev = line_chars[rel_pos - 1];
+        let next = line_chars[rel_pos];
+        if (prev == '(' && next == ')')
+            || (prev == '[' && next == ']')
+            || (prev == '{' && next == '}')
+        {
+            return Some((pos, pos));
+        }
+    }
+
+    // Check bracket pair with only whitespace between them on the same line
+    let mut open_idx = None;
+    let mut i = rel_pos;
+    while i > 0 {
+        i -= 1;
+        let c = line_chars[i];
+        if c == '(' || c == '[' || c == '{' {
+            open_idx = Some((i, c));
+            break;
+        } else if !c.is_whitespace() {
+            break;
+        }
+    }
+
+    let mut close_idx = None;
+    let mut j = rel_pos;
+    while j < line_chars.len() {
+        let c = line_chars[j];
+        if c == ')' || c == ']' || c == '}' {
+            close_idx = Some((j, c));
+            break;
+        } else if !c.is_whitespace() {
+            break;
+        }
+        j += 1;
+    }
+
+    if let (Some((open_i, open_c)), Some((close_j, close_c))) = (open_idx, close_idx) {
+        let matches = match (open_c, close_c) {
+            ('(', ')') => true,
+            ('[', ']') => true,
+            ('{', '}') => true,
+            _ => false,
+        };
+        if matches {
+            let between = &line_chars[open_i + 1..close_j];
+            if between.iter().all(|c| c.is_whitespace()) {
+                return Some((line.from + open_i + 1, line.from + close_j));
+            }
+        }
+    }
+
+    None
+}
+
+/// Replace the selection with a newline and indent the newly created line(s).
+/// If the cursor is between matching brackets, an additional newline is inserted.
+pub fn insert_newline_and_indent(state: &EditorState) -> Option<TransactionSpec> {
+    if state.is_read_only() {
+        return None;
+    }
+    let tab_size = *state.facet(EditorState::tab_size());
+    let res = state.change_by_range(|range| {
+        let mut from = range.from();
+        let mut to = range.to();
+        let line = state.doc().line_at(from);
+        let explode = if range.is_empty() {
+            is_between_brackets(state, from)
+        } else {
+            None
+        };
+
+        let cx = IndentContext::with_options(
+            state,
+            IndentContextOptions {
+                override_indentation: None,
+                simulate_break: Some(from),
+                simulate_double_break: explode.is_some(),
+            },
+        );
+
+        let indent = get_indentation_with_context(&cx, from).unwrap_or_else(|| {
+            let leading_space: String = line.text.chars().take_while(|c| c.is_whitespace()).collect();
+            count_column(&leading_space, tab_size, None)
+        });
+
+        // Skip whitespace after cursor up to line end
+        let rel_to = to.saturating_sub(line.from);
+        let line_chars: Vec<char> = line.text.chars().collect();
+        let mut skipped_to = to;
+        let mut idx = rel_to;
+        while idx < line_chars.len() && line_chars[idx].is_whitespace() {
+            skipped_to += 1;
+            idx += 1;
+        }
+        to = skipped_to;
+
+        if let Some((ex_from, ex_to)) = explode {
+            from = ex_from;
+            to = ex_to;
+        } else if from > line.from && from < line.from + 100 {
+            let rel_from = from - line.from;
+            if line_chars.iter().take(rel_from).all(|c| c.is_whitespace()) {
+                from = line.from;
+            }
+        }
+
+        let mid_indent = indent_string(state, indent);
+        let (insert_str, cursor_pos) = if explode.is_some() {
+            let base_indent = indent_string(state, cx.line_indent(line.from, -1));
+            let s = format!("\n{}\n{}", mid_indent, base_indent);
+            let pos = from + 1 + mid_indent.chars().count();
+            (s, pos)
+        } else {
+            let s = format!("\n{}", mid_indent);
+            let pos = from + 1 + mid_indent.chars().count();
+            (s, pos)
+        };
+
+        RangeResult::range(SelectionRange::cursor(cursor_pos))
+            .with_changes(ChangeSpec::replace(from, to, insert_str))
     });
 
     Some(res.into_spec())

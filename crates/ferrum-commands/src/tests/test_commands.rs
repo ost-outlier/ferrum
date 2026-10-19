@@ -3,12 +3,19 @@ use crate::commands::{
     indent_more, indent_selection, insert_newline_and_indent, insert_newline_keep_indent,
     move_line_down, move_line_up,
 };
+use ferrum_language::indent::INDENT_UNIT;
+use ferrum_language::javascript_language;
+use ferrum_state::facet::Extension;
 use ferrum_state::selection::{EditorSelection, SelectionRange};
 use ferrum_state::state::{EditorState, EditorStateConfig};
 use ferrum_state::text::Text;
 use std::sync::Arc;
 
 fn mk_state(s: &str) -> Arc<EditorState> {
+    mk_state_with_ext(s, vec![])
+}
+
+fn mk_state_with_ext(s: &str, exts: Vec<Extension>) -> Arc<EditorState> {
     let mut clean = String::new();
     let mut ranges = Vec::new();
     let mut in_range: Option<usize> = None;
@@ -38,7 +45,7 @@ fn mk_state(s: &str) -> Arc<EditorState> {
     EditorState::create(EditorStateConfig {
         doc: Some(Text::from(clean.as_str())),
         selection: Some(sel),
-        ..Default::default()
+        extensions: if exts.is_empty() { None } else { Some(exts) },
     })
 }
 
@@ -89,7 +96,16 @@ fn test_cmd(
     expected: &str,
     cmd: impl Fn(&EditorState) -> Option<ferrum_state::transaction::TransactionSpec>,
 ) {
-    let st = mk_state(from);
+    test_cmd_with_ext(from, expected, vec![], cmd);
+}
+
+fn test_cmd_with_ext(
+    from: &str,
+    expected: &str,
+    exts: Vec<Extension>,
+    cmd: impl Fn(&EditorState) -> Option<ferrum_state::transaction::TransactionSpec>,
+) {
+    let st = mk_state_with_ext(from, exts);
     let next = run_cmd(&st, cmd);
     assert_eq!(state_str(&next), expected);
 }
@@ -153,22 +169,22 @@ fn test_cm6_cmd_indent_less_can_split_tabs() {
 
 #[test]
 fn test_cm6_cmd_indent_selection_auto_indents_the_current_line() {
-    test_cmd("if (0)\nfoo()|", "if (0)\n  foo()|", indent_selection);
+    test_cmd_with_ext("if (0)\nfoo()|", "if (0)\n  foo()|", vec![javascript_language()], indent_selection);
 }
 
 #[test]
 fn test_cm6_cmd_indent_selection_moves_the_cursor_ahead_of_the_indentation() {
-    test_cmd("if (0)\n | foo()", "if (0)\n  |foo()", indent_selection);
+    test_cmd_with_ext("if (0)\n | foo()", "if (0)\n  |foo()", vec![javascript_language()], indent_selection);
 }
 
 #[test]
 fn test_cm6_cmd_indent_selection_indents_blocks_of_lines() {
-    test_cmd("if (0) {\n<one\ntwo\nthree>\n}", "if (0) {\n  <one\n  two\n  three>\n}", indent_selection);
+    test_cmd_with_ext("if (0) {\n<one\ntwo\nthree>\n}", "if (0) {\n  <one\n  two\n  three>\n}", vec![javascript_language()], indent_selection);
 }
 
 #[test]
 fn test_cm6_cmd_indent_selection_includes_previous_indentation_changes_in_relative_indentation() {
-    test_cmd("<{\n{\n{\n{}\n}\n}\n}>", "<{\n  {\n    {\n      {}\n    }\n  }\n}>", indent_selection);
+    test_cmd_with_ext("<{\n{\n{\n{}\n}\n}\n}>", "<{\n  {\n    {\n      {}\n    }\n  }\n}>", vec![javascript_language()], indent_selection);
 }
 
 // -------------------------------------------------------------------------
@@ -196,47 +212,47 @@ fn test_cm6_cmd_insert_newline_keep_indent_deletes_the_selection() {
 
 #[test]
 fn test_cm6_cmd_insert_newline_and_indent_indents_the_new_line() {
-    test_cmd("{|", "{\n  |", insert_newline_and_indent);
+    test_cmd_with_ext("{|", "{\n  |", vec![javascript_language()], insert_newline_and_indent);
 }
 
 #[test]
 fn test_cm6_cmd_insert_newline_and_indent_can_handle_multiple_selections() {
-    test_cmd("{|\n  foo()|", "{\n  |\n  foo()\n  |", insert_newline_and_indent);
+    test_cmd_with_ext("{|\n  foo()|", "{\n  |\n  foo()\n  |", vec![javascript_language()], insert_newline_and_indent);
 }
 
 #[test]
 fn test_cm6_cmd_insert_newline_and_indent_isnt_confused_by_text_after_the_cursor() {
-    test_cmd("{|two", "{\n  |two", insert_newline_and_indent);
+    test_cmd_with_ext("{|two", "{\n  |two", vec![javascript_language()], insert_newline_and_indent);
 }
 
 #[test]
 fn test_cm6_cmd_insert_newline_and_indent_clears_empty_lines_before_the_cursor() {
-    test_cmd("    |", "\n|", insert_newline_and_indent);
+    test_cmd_with_ext("    |", "\n|", vec![javascript_language()], insert_newline_and_indent);
 }
 
 #[test]
 fn test_cm6_cmd_insert_newline_and_indent_deletes_selected_text() {
-    test_cmd("{<one>two", "{\n  |two", insert_newline_and_indent);
+    test_cmd_with_ext("{<one>two", "{\n  |two", vec![javascript_language()], insert_newline_and_indent);
 }
 
 #[test]
 fn test_cm6_cmd_insert_newline_and_indent_can_explode_brackets() {
-    test_cmd("let x = [|]", "let x = [\n  |\n]", insert_newline_and_indent);
+    test_cmd_with_ext("let x = [|]", "let x = [\n  |\n]", vec![javascript_language()], insert_newline_and_indent);
 }
 
 #[test]
 fn test_cm6_cmd_insert_newline_and_indent_can_explode_in_indented_positions() {
-    test_cmd("{\n  foo(|)", "{\n  foo(\n    |\n  )", insert_newline_and_indent);
+    test_cmd_with_ext("{\n  foo(|)", "{\n  foo(\n    |\n  )", vec![javascript_language()], insert_newline_and_indent);
 }
 
 #[test]
 fn test_cm6_cmd_insert_newline_and_indent_can_explode_brackets_with_whitespace() {
-    test_cmd("foo( | )", "foo(\n  |\n)", insert_newline_and_indent);
+    test_cmd_with_ext("foo( | )", "foo(\n  |\n)", vec![javascript_language()], insert_newline_and_indent);
 }
 
 #[test]
 fn test_cm6_cmd_insert_newline_and_indent_doesnt_try_to_explode_already_exploded_brackets() {
-    test_cmd("foo(\n  |\n)", "foo(\n\n  |\n)", insert_newline_and_indent);
+    test_cmd_with_ext("foo(\n  |\n)", "foo(\n\n  |\n)", vec![javascript_language()], insert_newline_and_indent);
 }
 
 #[test]
@@ -256,12 +272,12 @@ fn test_cm6_cmd_insert_newline_and_indent_indents_when_previous_line_uses_four_s
 
 #[test]
 fn test_cm6_cmd_insert_newline_and_indent_indents_when_previous_line_uses_tab_indentation() {
-    test_cmd("\tfoo|", "\tfoo\n\t|", insert_newline_and_indent);
+    test_cmd_with_ext("\tfoo|", "\tfoo\n\t|", vec![INDENT_UNIT.of("\t".to_string())], insert_newline_and_indent);
 }
 
 #[test]
 fn test_cm6_cmd_insert_newline_and_indent_indents_when_previous_line_uses_tab_indentation_and_short_alignment() {
-    test_cmd("\t  foo|", "\t  foo\n\t  |", insert_newline_and_indent);
+    test_cmd_with_ext("\t  foo|", "\t  foo\n\t  |", vec![INDENT_UNIT.of("\t".to_string())], insert_newline_and_indent);
 }
 
 // -------------------------------------------------------------------------

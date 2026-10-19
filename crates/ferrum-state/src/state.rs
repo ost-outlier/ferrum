@@ -18,6 +18,10 @@ static TAB_SIZE: LazyLock<Facet<usize, usize>> = LazyLock::new(|| {
     Facet::define(|values: &[usize]| values.first().copied().unwrap_or(4))
 });
 
+static READ_ONLY: LazyLock<Facet<bool, bool>> = LazyLock::new(|| {
+    Facet::define(|values: &[bool]| values.iter().any(|&v| v))
+});
+
 static LINE_SEPARATOR: LazyLock<Facet<String, Option<String>>> = LazyLock::new(|| {
     Facet::define_static(|values: &[String]| values.first().cloned())
 });
@@ -165,6 +169,16 @@ impl EditorState {
     /// Accessor for the canonical `tabSize` facet.
     pub fn tab_size() -> &'static Facet<usize, usize> {
         &TAB_SIZE
+    }
+
+    /// Accessor for the canonical `readOnly` facet.
+    pub fn read_only() -> &'static Facet<bool, bool> {
+        &READ_ONLY
+    }
+
+    /// Whether the editor state is in read-only mode.
+    pub fn is_read_only(&self) -> bool {
+        *self.facet(&READ_ONLY)
     }
 
     /// Accessor for the canonical `lineSeparator` facet.

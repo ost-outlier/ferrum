@@ -1634,6 +1634,7 @@ dependencies = [
 name = "ferrum-commands"
 version = "0.1.0"
 dependencies = [
+ "ferrum-language",
  "ferrum-state",
  "smallvec",
  "unicode-segmentation",
