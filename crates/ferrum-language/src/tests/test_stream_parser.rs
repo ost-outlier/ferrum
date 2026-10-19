@@ -95,17 +95,16 @@ fn test_cm6_stream_02_can_reuse_state_on_updates() {
 
 #[test]
 fn test_cm6_stream_03_can_find_correct_parse_state_for_indentation() {
-    let _lang = StreamLanguage::define(TestParser {
+    let lang = StreamLanguage::define(TestParser {
         start_states: Arc::new(AtomicUsize::new(0)),
     });
     let doc_str = "\"abcdefg\"\n".repeat(200);
     let state = EditorState::create(EditorStateConfig {
         doc: Some(Text::from(doc_str.as_str())),
         selection: None,
-        extensions: None,
+        extensions: Some(vec![lang.extension()]),
     });
 
-    // In TDD RED phase: get_indentation returns None until language indent service is registered
     assert_eq!(get_indentation(&state, 0), Some(0));
     assert_eq!(get_indentation(&state, 10), Some(1));
     assert_eq!(get_indentation(&state, 100), Some(10));
@@ -152,12 +151,26 @@ fn test_cm6_stream_06_supports_gaps() {
     let lang = StreamLanguage::define(TestParser {
         start_states: Arc::new(AtomicUsize::new(0)),
     });
-    let tree = lang.parse_text(text);
-    // In TDD RED phase: will verify gap-aware parsing
+    let ranges = [
+        (0, 5),
+        (16, 23),
+        (26, 28),
+        (31, 33),
+        (36, 37),
+    ];
+    let tree = lang.parse_with_ranges(text, &ranges);
     assert_eq!(
         tree.to_string(),
         "Document(number,number,number,number,number,number)"
     );
+    assert_eq!(tree.resolve(17, 1).type_name(), "number");
+    assert_eq!((tree.resolve(17, 1).from, tree.resolve(17, 1).to), (17, 19));
+    assert_eq!(tree.resolve(20, 1).type_name(), "number");
+    assert_eq!((tree.resolve(20, 1).from, tree.resolve(20, 1).to), (20, 22));
+    assert_eq!(tree.resolve(26, 1).type_name(), "number");
+    assert_eq!((tree.resolve(26, 1).from, tree.resolve(26, 1).to), (26, 28));
+    assert_eq!(tree.resolve(32, 1).type_name(), "number");
+    assert_eq!((tree.resolve(32, 1).from, tree.resolve(32, 1).to), (32, 37));
 }
 
 #[test]

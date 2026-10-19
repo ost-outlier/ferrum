@@ -3,7 +3,7 @@
 
 use ferrum_state::facet::Facet;
 use ferrum_state::state::EditorState;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 /// Facet for configuring the indentation unit string (e.g. `"  "`, `"    "`, `"\t"`).
 /// Defaults to 2 spaces (`"  "`).
@@ -66,8 +66,11 @@ pub struct IndentContext<'a> {
     pub pos: usize,
 }
 
+/// Function type for indentation services.
+pub type IndentServiceFn = Arc<dyn Fn(&IndentContext) -> Option<usize> + Send + Sync>;
+
 /// Facet that registers indentation services.
-pub static INDENT_SERVICE: LazyLock<Facet<fn(&IndentContext) -> Option<usize>, Vec<fn(&IndentContext) -> Option<usize>>>> =
+pub static INDENT_SERVICE: LazyLock<Facet<IndentServiceFn, Vec<IndentServiceFn>>> =
     LazyLock::new(|| Facet::define(|inputs| inputs.to_vec()));
 
 /// Computes the appropriate indentation depth, as a column number, at the start of a given position.

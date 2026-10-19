@@ -22,6 +22,7 @@ impl Parser for MockJsParser {
             let mut script = SyntaxNode::new("Script", 0, text.len());
             let mut var_decl = SyntaxNode::new("VariableDeclaration", 0, text.len());
             var_decl.children.push(SyntaxNode::new("let", 0, 3));
+            var_decl.children.push(SyntaxNode::new("ObjectPattern", 4, 14));
             script.children.push(var_decl);
             SyntaxTree::new(script, text.len())
         } else {

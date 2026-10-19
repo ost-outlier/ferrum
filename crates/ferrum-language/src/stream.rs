@@ -1,7 +1,10 @@
 //! Stream parser tokenizer and line scanner.
 //! Faithful port of CodeMirror 6's `@codemirror/streamparser`.
 
-use crate::tree::{SyntaxNode, SyntaxTree};
+use crate::indent::{IndentContext, IndentServiceFn, INDENT_SERVICE};
+use crate::language::{Language, LANGUAGE};
+use crate::tree::{Parser, SyntaxNode, SyntaxTree};
+use ferrum_state::facet::Extension;
 use regex::Regex;
 use std::sync::Arc;
 
@@ -142,38 +145,138 @@ pub trait StreamParser<State: Clone>: Send + Sync {
 }
 
 /// Adapts a `StreamParser` into a full Ferrum `Language`.
-pub struct StreamLanguage<State: Clone + 'static> {
+#[derive(Clone)]
+pub struct StreamLanguage<State: Clone + Send + Sync + 'static> {
     pub parser: Arc<dyn StreamParser<State>>,
 }
 
-impl<State: Clone + 'static> StreamLanguage<State> {
+impl<State: Clone + Send + Sync + 'static> StreamLanguage<State> {
     pub fn define(parser: impl StreamParser<State> + 'static) -> Self {
         Self {
             parser: Arc::new(parser),
         }
     }
 
+    /// Returns an extension configuring this language and its indentation service on an editor state.
+    pub fn extension(&self) -> Extension {
+        let parser = self.parser.clone();
+        let lang = Language::new("stream", Arc::new(self.clone()));
+        let indent_fn: IndentServiceFn = Arc::new(move |cx: &IndentContext| {
+            let line = cx.state.doc().line_at(cx.pos);
+            let mut state = parser.start_state(2);
+            let mut cur_line_start = 0;
+            while cur_line_start < line.from {
+                let cur_line = cx.state.doc().line_at(cur_line_start);
+                let cur_text = &cur_line.text;
+                if !cur_text.is_empty() {
+                    let mut stream = StringStream::new(cur_text.as_str(), 4, 2);
+                    while !stream.eol() {
+                        parser.token(&mut stream, &mut state);
+                    }
+                } else {
+                    parser.blank_line(&mut state, 2);
+                }
+                cur_line_start = cur_line.to + 1;
+            }
+            let line_text = &line.text;
+            let trimmed = line_text.trim_start();
+            parser.indent(&state, trimmed, 2)
+        });
+
+        Extension::from(vec![
+            LANGUAGE.of(lang),
+            INDENT_SERVICE.of(indent_fn),
+        ])
+    }
+
     /// Parses text into a syntax tree using the stream parser.
     pub fn parse_text(&self, text: &str) -> SyntaxTree {
+        self.parse_with_ranges(text, &[])
+    }
+
+    /// Parses text into a syntax tree using the stream parser, optionally restricting to given ranges (supporting gaps).
+    pub fn parse_with_ranges(&self, text: &str, ranges: &[(usize, usize)]) -> SyntaxTree {
         let mut root = SyntaxNode::new("Document", 0, text.len());
         let mut state = self.parser.start_state(2);
 
+        let default_range = [(0, text.len())];
+        let active_ranges = if ranges.is_empty() {
+            &default_range[..]
+        } else {
+            ranges
+        };
+
         let mut offset = 0;
         for line in text.split('\n') {
-            let mut stream = StringStream::new(line, 4, 2);
+            let line_len = line.len();
+            let line_start = offset;
+            let line_end = offset + line_len;
+
+            // Collect intersections with active ranges on this line
+            let mut stitched_line = String::new();
+            // Vector of (stitched_start, stitched_len, doc_start)
+            let mut pieces: Vec<(usize, usize, usize)> = Vec::new();
+
+            for &(r_from, r_to) in active_ranges {
+                if r_from < line_end && r_to > line_start {
+                    let inter_from = r_from.max(line_start);
+                    let inter_to = r_to.min(line_end);
+                    if inter_to > inter_from {
+                        let rel_from = inter_from - line_start;
+                        let rel_to = inter_to - line_start;
+                        let piece_str = &line[rel_from..rel_to];
+                        let stitched_start = stitched_line.len();
+                        stitched_line.push_str(piece_str);
+                        pieces.push((stitched_start, piece_str.len(), inter_from));
+                    }
+                }
+            }
+
+            if pieces.is_empty() {
+                offset += line_len + 1;
+                continue;
+            }
+
+            let pos_to_doc = |stitched_pos: usize, is_end: bool| -> usize {
+                if stitched_pos == 0 {
+                    return pieces[0].2;
+                }
+                for &(s_start, s_len, d_start) in &pieces {
+                    if is_end {
+                        if stitched_pos <= s_start + s_len {
+                            return d_start + (stitched_pos - s_start);
+                        }
+                    } else {
+                        if stitched_pos < s_start + s_len {
+                            return d_start + (stitched_pos - s_start);
+                        }
+                    }
+                }
+                let last = pieces.last().unwrap();
+                last.2 + last.1
+            };
+
+            let mut stream = StringStream::new(&stitched_line, 4, 2);
             while !stream.eol() {
                 stream.start = stream.pos;
-                let token_start = offset + stream.pos;
+                let token_start = pos_to_doc(stream.pos, false);
                 if let Some(tag) = self.parser.token(&mut stream, &mut state) {
-                    let token_end = offset + stream.pos;
+                    let token_end = pos_to_doc(stream.pos, true);
                     root.children.push(SyntaxNode::new(tag, token_start, token_end));
                 } else if stream.pos == stream.start {
                     stream.next();
                 }
             }
-            offset += line.len() + 1;
+
+            offset += line_len + 1;
         }
 
         SyntaxTree::new(root, text.len())
+    }
+}
+
+impl<State: Clone + Send + Sync + 'static> Parser for StreamLanguage<State> {
+    fn parse(&self, text: &str, _fragments: &[SyntaxTree], ranges: &[(usize, usize)]) -> SyntaxTree {
+        self.parse_with_ranges(text, ranges)
     }
 }
