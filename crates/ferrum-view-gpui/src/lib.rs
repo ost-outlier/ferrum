@@ -7,7 +7,9 @@ pub mod editor_view;
 pub mod keymap_bridge;
 pub mod theme;
 
-pub use editor_view::{EditorCanvasElement, FerrumEditorView};
+pub use editor_view::{
+    byte_to_char_offset, char_to_byte_offset, EditorCanvasElement, FerrumEditorView,
+};
 pub use keymap_bridge::handle_keystroke;
 pub use theme::EditorTheme;
 

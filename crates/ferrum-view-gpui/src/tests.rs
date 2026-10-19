@@ -206,3 +206,44 @@ fn test_clipboard_paste_and_cut_semantics() {
     assert_eq!(after_paste.doc().to_string(), "Greetings World");
 }
 
+#[test]
+fn test_char_and_byte_offset_conversion_with_multibyte_utf8() {
+    use crate::editor_view::{byte_to_char_offset, char_to_byte_offset};
+
+    // The line quoted in user report: contains bullet '•' which is 3 bytes (U+2022) but 1 char.
+    let text = "// • Direct Keymap dispatch and typing";
+    assert_eq!(text.chars().count(), 38);
+    assert_eq!(text.len(), 40); // 2 extra bytes due to '•'
+
+    // At the start of the line (ASCII): 1-to-1
+    assert_eq!(char_to_byte_offset(text, 0), 0);
+    assert_eq!(char_to_byte_offset(text, 3), 3); // at '•'
+    assert_eq!(char_to_byte_offset(text, 4), 6); // right after '•' (jump of 3 bytes)
+
+    // At the end of the line: char 38 must map to byte 40 (end of text in bytes)!
+    assert_eq!(char_to_byte_offset(text, 38), 40);
+
+    // Conversely, clicking at the end of the line returns byte 40, which must map to char 38!
+    assert_eq!(byte_to_char_offset(text, 40), 38);
+
+    // If a naive implementation passed char 38 as byte 38 to GPUI:
+    // Byte 38 in this text is at char 36 (between 'i' and 'n' of "typing")!
+    assert_eq!(byte_to_char_offset(text, 38), 36);
+}
+
+#[test]
+fn test_char_and_byte_offset_conversion_with_emoji() {
+    use crate::editor_view::{byte_to_char_offset, char_to_byte_offset};
+
+    let text = "Ferrum 🚀 Engine";
+    // '🚀' is 4 bytes in UTF-8, 1 char.
+    assert_eq!(text.chars().count(), 15);
+    assert_eq!(text.len(), 18);
+
+    assert_eq!(char_to_byte_offset(text, 7), 7); // at '🚀'
+    assert_eq!(char_to_byte_offset(text, 8), 11); // after '🚀' (jump of 4 bytes)
+    assert_eq!(char_to_byte_offset(text, 15), 18); // end of line
+
+    assert_eq!(byte_to_char_offset(text, 18), 15);
+}
+

@@ -29,6 +29,30 @@ pub struct FerrumEditorView {
     pub drag_anchor: Option<usize>,
 }
 
+/// Converts a character (codepoint) offset within `text` to its corresponding UTF-8 byte offset.
+#[inline]
+pub fn char_to_byte_offset(text: &str, char_offset: usize) -> usize {
+    text.char_indices()
+        .nth(char_offset)
+        .map(|(byte_offset, _)| byte_offset)
+        .unwrap_or(text.len())
+}
+
+/// Converts a UTF-8 byte offset within `text` to its corresponding character (codepoint) offset.
+#[inline]
+pub fn byte_to_char_offset(text: &str, byte_offset: usize) -> usize {
+    let clamped = byte_offset.min(text.len());
+    let safe_byte = if text.is_char_boundary(clamped) {
+        clamped
+    } else {
+        (0..=clamped)
+            .rev()
+            .find(|&b| text.is_char_boundary(b))
+            .unwrap_or(0)
+    };
+    text[..safe_byte].chars().count()
+}
+
 impl FerrumEditorView {
     /// Creates a new interactive GPUI editor view wrapping the given `EditorState`.
     pub fn new(state: Arc<EditorState>, cx: &mut Context<Self>) -> Self {
@@ -63,7 +87,9 @@ impl FerrumEditorView {
         }
         let line = doc.line(line_idx);
         let col = if let Some(layout) = self.last_layouts.get(line_idx) {
-            layout.closest_index_for_x(rel_x)
+            let byte_offset = layout.closest_index_for_x(rel_x);
+            let line_text = doc.slice_to_string(line.from..line.to);
+            byte_to_char_offset(&line_text, byte_offset)
         } else {
             0
         };
@@ -299,6 +325,7 @@ impl Element for EditorCanvasElement {
 
         let mut shaped_lines = Vec::new();
         let mut gutter_lines = Vec::new();
+        let mut line_texts = Vec::with_capacity(doc.len_lines());
 
         // 1. Shape each line of text and gutter numbers
         for line_idx in 0..doc.len_lines() {
@@ -331,12 +358,13 @@ impl Element for EditorCanvasElement {
             };
 
             let shaped = window.text_system().shape_line(
-                SharedString::from(line_text),
+                SharedString::from(line_text.clone()),
                 font_size,
                 &[default_run],
                 None,
             );
             shaped_lines.push(shaped);
+            line_texts.push(line_text);
         }
 
         // 2. Prepare selection and cursor quads
@@ -349,7 +377,9 @@ impl Element for EditorCanvasElement {
             if let Some(layout) = shaped_lines.get(head_line_idx) {
                 let head_line = doc.line(head_line_idx);
                 let col = range.head.saturating_sub(head_line.from);
-                let cursor_x = gutter_width + layout.x_for_index(col);
+                let head_text = &line_texts[head_line_idx];
+                let byte_col = char_to_byte_offset(head_text, col);
+                let cursor_x = gutter_width + layout.x_for_index(byte_col);
                 let cursor_y = line_height * (head_line_idx as f32);
 
                 cursor_quads.push(fill(
@@ -380,8 +410,12 @@ impl Element for EditorCanvasElement {
                             line.length
                         };
 
-                        let start_x = gutter_width + layout.x_for_index(start_col);
-                        let end_x = gutter_width + layout.x_for_index(end_col);
+                        let l_text = &line_texts[l_idx];
+                        let start_byte = char_to_byte_offset(l_text, start_col);
+                        let end_byte = char_to_byte_offset(l_text, end_col);
+
+                        let start_x = gutter_width + layout.x_for_index(start_byte);
+                        let end_x = gutter_width + layout.x_for_index(end_byte);
                         let y = line_height * (l_idx as f32);
 
                         if end_x > start_x {
