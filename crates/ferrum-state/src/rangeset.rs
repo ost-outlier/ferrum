@@ -423,28 +423,540 @@ pub trait RangeComparator<T: RangeValue> {
 /// Trait for receiving non-overlapping active spans or points across a document region.
 pub trait SpanIterator<T: RangeValue> {
     fn span(&mut self, from: usize, to: usize, active: &[T], open_start: usize);
-    fn point(&mut self, from: usize, to: usize, value: &T, open_start: usize);
+    fn point(&mut self, from: usize, to: usize, value: &T, active: &[T], open_start: usize, index: usize);
+}
+
+struct LayerCursor<'a, T: RangeValue> {
+    chunk_pos: &'a [usize],
+    chunks: &'a [Arc<Chunk<T>>],
+    chunk_index: usize,
+    range_index: usize,
+    from: usize,
+    to: usize,
+    value: Option<&'a T>,
+    rank: usize,
+    min_point: isize,
+}
+
+impl<'a, T: RangeValue> LayerCursor<'a, T> {
+    fn new(chunk_pos: &'a [usize], chunks: &'a [Arc<Chunk<T>>], rank: usize, min_point: isize) -> Self {
+        Self {
+            chunk_pos,
+            chunks,
+            chunk_index: 0,
+            range_index: 0,
+            from: FAR as usize,
+            to: FAR as usize,
+            value: None,
+            rank,
+            min_point,
+        }
+    }
+
+    fn start_side(&self) -> i32 {
+        self.value.map_or(0, |v| v.start_side())
+    }
+
+    fn end_side(&self) -> i32 {
+        self.value.map_or(0, |v| v.end_side())
+    }
+
+    fn goto(&mut self, pos: usize, side: i32) {
+        self.chunk_index = 0;
+        self.range_index = 0;
+        self.goto_inner(pos, side, false);
+    }
+
+    fn goto_inner(&mut self, pos: usize, side: i32, mut forward: bool) {
+        while self.chunk_index < self.chunks.len() {
+            let next = &self.chunks[self.chunk_index];
+            let chunk_start = self.chunk_pos[self.chunk_index];
+            let chunk_end = chunk_start + next.length();
+            if !(chunk_end < pos || next.max_point < self.min_point) {
+                break;
+            }
+            self.chunk_index += 1;
+            forward = false;
+        }
+
+        if self.chunk_index < self.chunks.len() {
+            let chunk_start = self.chunk_pos[self.chunk_index];
+            let rel_pos = pos.saturating_sub(chunk_start);
+            let range_index = self.chunks[self.chunk_index].find_index(rel_pos, side, true, 0);
+            if !forward || self.range_index < range_index {
+                self.set_range_index(range_index);
+            }
+        }
+        self.next();
+    }
+
+    fn forward(&mut self, pos: usize, side: i32) {
+        let diff = (self.to as i64 - pos as i64) * 2 + (if self.end_side() >= side { 1 } else { -1 });
+        if diff < 0 {
+            self.goto_inner(pos, side, true);
+        }
+    }
+
+    fn set_range_index(&mut self, index: usize) {
+        if index >= self.chunks[self.chunk_index].value.len() {
+            self.chunk_index += 1;
+            self.range_index = 0;
+        } else {
+            self.range_index = index;
+        }
+    }
+
+    fn next(&mut self) {
+        loop {
+            if self.chunk_index >= self.chunks.len() {
+                self.from = FAR as usize;
+                self.to = FAR as usize;
+                self.value = None;
+                break;
+            }
+            let chunk = &self.chunks[self.chunk_index];
+            let chunk_start = self.chunk_pos[self.chunk_index];
+            let from = chunk_start + chunk.from[self.range_index];
+            let to = chunk_start + chunk.to[self.range_index];
+            let val = &chunk.value[self.range_index];
+            self.from = from;
+            self.to = to;
+            self.value = Some(val);
+            self.set_range_index(self.range_index + 1);
+            if self.min_point < 0 || (val.point() && (to - from) as isize >= self.min_point) {
+                break;
+            }
+        }
+    }
+
+    fn compare(&self, other: &Self) -> std::cmp::Ordering {
+        self.from
+            .cmp(&other.from)
+            .then_with(|| self.start_side().cmp(&other.start_side()))
+            .then_with(|| self.rank.cmp(&other.rank))
+            .then_with(|| self.to.cmp(&other.to))
+            .then_with(|| self.end_side().cmp(&other.end_side()))
+    }
+}
+
+struct HeapCursor<'a, T: RangeValue> {
+    heap: Vec<LayerCursor<'a, T>>,
+    from: usize,
+    to: usize,
+    value: Option<&'a T>,
+    rank: usize,
+}
+
+impl<'a, T: RangeValue> HeapCursor<'a, T> {
+    fn from_sets(sets: &'a [RangeSet<T>], min_point: isize) -> Self {
+        let mut heap = Vec::new();
+        for (i, set) in sets.iter().enumerate() {
+            let mut cur = Some(set);
+            while let Some(layer) = cur {
+                if layer.max_point >= min_point && !layer.chunk.is_empty() {
+                    heap.push(LayerCursor::new(&layer.chunk_pos, &layer.chunk, i, min_point));
+                }
+                cur = layer.next_layer.as_deref();
+            }
+        }
+        Self {
+            heap,
+            from: FAR as usize,
+            to: FAR as usize,
+            value: None,
+            rank: 0,
+        }
+    }
+
+    fn start_side(&self) -> i32 {
+        self.value.map_or(0, |v| v.start_side())
+    }
+
+    fn goto(&mut self, pos: usize, side: i32) {
+        for cur in &mut self.heap {
+            cur.goto(pos, side);
+        }
+        for i in (0..self.heap.len()).rev() {
+            self.heap_bubble(i);
+        }
+        self.next();
+    }
+
+    fn forward(&mut self, pos: usize, side: i32) {
+        for cur in &mut self.heap {
+            cur.forward(pos, side);
+        }
+        for i in (0..self.heap.len()).rev() {
+            self.heap_bubble(i);
+        }
+        if let Some(val) = self.value {
+            let diff = (self.to as i64 - pos as i64) * 2 + (if val.end_side() >= side { 1 } else { -1 });
+            if diff < 0 {
+                self.next();
+            }
+        }
+    }
+
+    fn next(&mut self) {
+        if self.heap.is_empty() {
+            self.from = FAR as usize;
+            self.to = FAR as usize;
+            self.value = None;
+            self.rank = usize::MAX;
+        } else {
+            let top = &self.heap[0];
+            self.from = top.from;
+            self.to = top.to;
+            self.value = top.value;
+            self.rank = top.rank;
+            if top.value.is_some() {
+                self.heap[0].next();
+            }
+            self.heap_bubble(0);
+        }
+    }
+
+    fn heap_bubble(&mut self, mut index: usize) {
+        let len = self.heap.len();
+        while (index << 1) + 1 < len {
+            let mut child_index = (index << 1) + 1;
+            if child_index + 1 < len && self.heap[child_index].compare(&self.heap[child_index + 1]) == std::cmp::Ordering::Greater {
+                child_index += 1;
+            }
+            if self.heap[index].compare(&self.heap[child_index]) != std::cmp::Ordering::Greater {
+                break;
+            }
+            self.heap.swap(index, child_index);
+            index = child_index;
+        }
+    }
+}
+
+struct SpanCursor<'a, T: RangeValue> {
+    cursor: HeapCursor<'a, T>,
+    active: Vec<T>,
+    active_to: Vec<usize>,
+    active_rank: Vec<usize>,
+    min_active: isize,
+
+    point: Option<T>,
+    point_from: usize,
+    point_rank: usize,
+
+    to: i64,
+    end_side: i32,
+    open_start: isize,
+}
+
+impl<'a, T: RangeValue> SpanCursor<'a, T> {
+    fn new(sets: &'a [RangeSet<T>], min_point: isize) -> Self {
+        Self {
+            cursor: HeapCursor::from_sets(sets, min_point),
+            active: Vec::new(),
+            active_to: Vec::new(),
+            active_rank: Vec::new(),
+            min_active: -1,
+            point: None,
+            point_from: 0,
+            point_rank: 0,
+            to: -FAR,
+            end_side: 0,
+            open_start: -1,
+        }
+    }
+
+    fn goto(&mut self, pos: usize, side: i32) {
+        self.cursor.goto(pos, side);
+        self.active.clear();
+        self.active_to.clear();
+        self.active_rank.clear();
+        self.min_active = -1;
+        self.to = pos as i64;
+        self.end_side = side;
+        self.open_start = -1;
+        self.next();
+    }
+
+    fn forward(&mut self, pos: usize, side: i32) {
+        while self.min_active > -1 {
+            let idx = self.min_active as usize;
+            let diff = (self.active_to[idx] as i64 - pos as i64) * 2
+                + (if self.active[idx].end_side() >= side { 1 } else { -1 });
+            if diff < 0 {
+                self.remove_active(idx);
+            } else {
+                break;
+            }
+        }
+        self.cursor.forward(pos, side);
+    }
+
+    fn remove_active(&mut self, index: usize) {
+        self.active.remove(index);
+        self.active_to.remove(index);
+        self.active_rank.remove(index);
+        self.min_active = self.find_min_index();
+    }
+
+    fn find_min_index(&self) -> isize {
+        let mut found = -1isize;
+        let mut found_pos = FAR;
+        for i in 0..self.active_to.len() {
+            let diff = if found < 0 {
+                -1
+            } else {
+                (self.active_to[i] as i64 - found_pos) * 2
+                    + (if self.active[i].end_side() >= self.active[found as usize].end_side() { 1 } else { -1 })
+            };
+            if diff < 0 {
+                found = i as isize;
+                found_pos = self.active_to[i] as i64;
+            }
+        }
+        found
+    }
+
+    fn add_active(&mut self, track_open: &mut Option<Vec<usize>>) {
+        let value = self.cursor.value.unwrap().clone();
+        let to = self.cursor.to;
+        let rank = self.cursor.rank;
+        let mut i = 0;
+        while i < self.active_rank.len() {
+            let rank_diff = rank as isize - self.active_rank[i] as isize;
+            let to_diff = to as isize - self.active_to[i] as isize;
+            if rank_diff > 0 || (rank_diff == 0 && to_diff > 0) {
+                i += 1;
+            } else {
+                break;
+            }
+        }
+        self.active.insert(i, value);
+        self.active_to.insert(i, to);
+        self.active_rank.insert(i, rank);
+        if let Some(ref mut track) = track_open {
+            track.insert(i, self.cursor.from);
+        }
+        self.min_active = self.find_min_index();
+    }
+
+    fn next(&mut self) {
+        let from = self.to;
+        let was_point = self.point.is_some();
+        self.point = None;
+        let mut track_open = if self.open_start < 0 { Some(Vec::new()) } else { None };
+
+        loop {
+            let a = self.min_active;
+            let a_idx = a as usize;
+            if a > -1 {
+                let diff = (self.active_to[a_idx] as i64 - self.cursor.from as i64) * 2
+                    + (if self.active[a_idx].end_side() >= self.cursor.start_side() { 1 } else { -1 });
+                if diff < 0 {
+                    if self.active_to[a_idx] as i64 > from {
+                        self.to = self.active_to[a_idx] as i64;
+                        self.end_side = self.active[a_idx].end_side();
+                        break;
+                    }
+                    self.remove_active(a_idx);
+                    if let Some(ref mut track) = track_open {
+                        track.remove(a_idx);
+                    }
+                    continue;
+                }
+            }
+
+            if self.cursor.value.is_none() {
+                self.to = FAR;
+                self.end_side = 0;
+                break;
+            } else if self.cursor.from as i64 > from {
+                self.to = self.cursor.from as i64;
+                self.end_side = self.cursor.start_side();
+                break;
+            } else {
+                let next_val = self.cursor.value.unwrap().clone();
+                if !next_val.point() {
+                    self.add_active(&mut track_open);
+                    self.cursor.next();
+                } else if was_point && self.cursor.to as i64 == self.to && self.cursor.from < self.cursor.to {
+                    self.cursor.next();
+                } else {
+                    self.point = Some(next_val.clone());
+                    self.point_from = self.cursor.from;
+                    self.point_rank = self.cursor.rank;
+                    self.to = self.cursor.to as i64;
+                    self.end_side = next_val.end_side();
+                    self.cursor.next();
+                    self.forward(self.to as usize, self.end_side);
+                    break;
+                }
+            }
+        }
+
+        if let Some(track) = track_open {
+            self.open_start = 0;
+            for &open_pos in track.iter().rev() {
+                if (open_pos as i64) < from {
+                    self.open_start += 1;
+                }
+            }
+        }
+    }
+
+    fn active_for_point(&self, to: usize) -> Vec<T> {
+        let mut active = Vec::new();
+        if self.active.is_empty() {
+            return active;
+        }
+        for i in (0..self.active.len()).rev() {
+            if self.active_rank[i] < self.point_rank {
+                break;
+            }
+            let point_end_side = self.point.as_ref().map_or(0, |p| p.end_side());
+            if self.active_to[i] > to || (self.active_to[i] == to && self.active[i].end_side() >= point_end_side) {
+                active.push(self.active[i].clone());
+            }
+        }
+        active.reverse();
+        active
+    }
+
+    fn open_end(&self, to: usize) -> usize {
+        let mut open = 0;
+        for i in (0..self.active_to.len()).rev() {
+            if self.active_to[i] > to {
+                open += 1;
+            }
+        }
+        open
+    }
+}
+
+fn same_values<T: RangeValue>(a: &[T], b: &[T]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    for i in 0..a.len() {
+        if !a[i].eq_val(&b[i]) {
+            return false;
+        }
+    }
+    true
+}
+
+fn compare_cursors<T: RangeValue, C: RangeComparator<T>>(
+    a: &mut SpanCursor<T>,
+    start_a: usize,
+    b: &mut SpanCursor<T>,
+    start_b: usize,
+    length: usize,
+    comparator: &mut C,
+) {
+    a.goto(start_a, -1_000_000);
+    b.goto(start_b, -1_000_000);
+    let end_b = start_b + length;
+    let mut pos = start_b;
+    let d_pos = start_b as i64 - start_a as i64;
+
+    loop {
+        let d_end = (a.to + d_pos) - b.to;
+        let diff = if d_end != 0 { d_end } else { (a.end_side - b.end_side) as i64 };
+        let end = if diff < 0 { a.to + d_pos } else { b.to };
+        let clip_end = (end as usize).min(end_b);
+
+        if a.point.is_some() || b.point.is_some() {
+            let matches = a.point.is_some()
+                && b.point.is_some()
+                && a.point.as_ref().unwrap().eq_val(b.point.as_ref().unwrap())
+                && same_values(&a.active_for_point(a.to as usize), &b.active_for_point(b.to as usize));
+            if !matches {
+                comparator.compare_point(pos, clip_end, a.point.as_ref(), b.point.as_ref());
+            }
+        } else {
+            if clip_end > pos && !same_values(&a.active, &b.active) {
+                comparator.compare_range(pos, clip_end, &a.active, &b.active);
+            }
+        }
+
+        if end as usize > end_b {
+            break;
+        }
+        pos = end as usize;
+        if diff <= 0 {
+            a.next();
+        }
+        if diff >= 0 {
+            b.next();
+        }
+    }
 }
 
 impl<T: RangeValue> RangeSet<T> {
     /// Compares two collections of RangeSets through document changes.
     pub fn compare<C: RangeComparator<T>>(
-        _old_sets: &[RangeSet<T>],
-        _new_sets: &[RangeSet<T>],
-        _changes: &crate::change::ChangeSet,
-        _comparator: &mut C,
+        old_sets: &[RangeSet<T>],
+        new_sets: &[RangeSet<T>],
+        changes: &crate::change::ChangeSet,
+        comparator: &mut C,
     ) {
-        // TDD RED phase stub
+        let min_point = -1;
+        let mut a = SpanCursor::new(old_sets, min_point);
+        let mut b = SpanCursor::new(new_sets, min_point);
+
+        let mut pos_a = 0;
+        let mut pos_b = 0;
+        changes.desc().iter_gaps(|from_a, from_b, length| {
+            if length > 0 {
+                compare_cursors(&mut a, from_a, &mut b, from_b, length, comparator);
+            }
+            pos_a = from_a + length;
+            pos_b = from_b + length;
+        });
+        let doc_len_a = changes.desc().length();
+        let doc_len_b = changes.desc().new_length();
+        if pos_a < doc_len_a || pos_b < doc_len_b {
+            let remain = std::cmp::min(doc_len_a.saturating_sub(pos_a), doc_len_b.saturating_sub(pos_b));
+            if remain > 0 {
+                compare_cursors(&mut a, pos_a, &mut b, pos_b, remain, comparator);
+            }
+        }
     }
 
     /// Iterates through non-overlapping slices of covering active values.
     pub fn spans<S: SpanIterator<T>>(
-        _sets: &[RangeSet<T>],
-        _from: usize,
-        _to: usize,
-        _iterator: &mut S,
-        _open_start: usize,
-    ) {
-        // TDD RED phase stub
+        sets: &[RangeSet<T>],
+        from: usize,
+        to: usize,
+        iterator: &mut S,
+        min_point_size: isize,
+    ) -> usize {
+        let mut cursor = SpanCursor::new(sets, min_point_size);
+        cursor.goto(from, -FAR as i32);
+        let mut pos = from;
+        let mut open_ranges = cursor.open_start.max(0) as usize;
+        loop {
+            let cur_to = (cursor.to as usize).min(to);
+            if let Some(ref pt) = cursor.point.clone() {
+                let active = cursor.active_for_point(cursor.to as usize);
+                let open_count = if cursor.point_from < from {
+                    active.len() + 1
+                } else if pt.start_side() < 0 {
+                    active.len()
+                } else {
+                    active.len().min(open_ranges)
+                };
+                iterator.point(pos, cur_to, pt, &active, open_count, cursor.point_rank);
+                open_ranges = cursor.open_end(cur_to).min(active.len());
+            } else if cur_to > pos {
+                iterator.span(pos, cur_to, &cursor.active, open_ranges);
+                open_ranges = cursor.open_end(cur_to);
+            }
+            if cursor.to as usize > to {
+                let add_point = if cursor.point.is_some() && cursor.to as usize > to { 1 } else { 0 };
+                return open_ranges + add_point;
+            }
+            pos = cursor.to as usize;
+            cursor.next();
+        }
     }
 }

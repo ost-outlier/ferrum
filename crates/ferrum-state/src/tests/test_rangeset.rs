@@ -517,11 +517,28 @@ struct TestSpanBuilder {
 impl SpanIterator<TestVal> for TestSpanBuilder {
     fn span(&mut self, from: usize, to: usize, active: &[TestVal], _open_start: usize) {
         let names: Vec<String> = active.iter().filter_map(|v| v.name.clone()).collect();
-        self.spans.push(format!("{}={}", to - from, names.join("/")));
+        let name_str = if names.is_empty() {
+            String::new()
+        } else {
+            format!("={}", names.join("/"))
+        };
+        self.spans.push(format!("{}{}", to - from, name_str));
     }
-    fn point(&mut self, from: usize, to: usize, value: &TestVal, _open_start: usize) {
-        self.spans.push(format!("{}[{}]", to - from, value.name.as_deref().unwrap_or("")));
+    fn point(&mut self, from: usize, to: usize, value: &TestVal, _active: &[TestVal], _open_start: usize, _index: usize) {
+        let prefix = if to > from {
+            format!("{}=", to - from)
+        } else {
+            String::new()
+        };
+        let name = value.name.as_deref().map(|n| format!("[{}]", n)).unwrap_or_else(|| "ø".to_string());
+        self.spans.push(format!("{}{}", prefix, name));
     }
+}
+
+fn test_spans(sets: &[RangeSet<TestVal>], start: usize, end: usize, expected: &str) {
+    let mut builder = TestSpanBuilder { spans: Vec::new() };
+    RangeSet::spans(sets, start, end, &mut builder, -1);
+    assert_eq!(builder.spans.join(" "), expected);
 }
 
 #[test]
@@ -531,15 +548,18 @@ fn test_cm6_rangeset_35_spans_separates_range_in_covering_spans() {
         mk(5, 8, TestVal::mark("two", 0, 0)),
         mk(10, 12, TestVal::mark("three", 0, 0)),
     ], true).unwrap();
-    let mut builder = TestSpanBuilder { spans: Vec::new() };
-    RangeSet::spans(&[set], 0, 15, &mut builder, 0);
+    test_spans(&[set], 0, 15, "3 2=one 3=two/one 2 2=three 3");
 }
 
 #[test]
 fn test_cm6_rangeset_36_spans_can_retrieve_a_limited_range() {
-    let set = RangeSet::of_sorted(vec![mk(0, 200, TestVal::mark("wide", 0, 0))], false).unwrap();
-    let mut builder = TestSpanBuilder { spans: Vec::new() };
-    RangeSet::spans(&[set], 20, 26, &mut builder, 0);
+    let mut decos = vec![mk(0, 200, TestVal::mark("wide", 0, 0))];
+    for i in 0..100 {
+        let name = format!("span{}", i);
+        decos.push(mk(i * 2, i * 2 + 2, TestVal::mark(&name, 0, 0)));
+    }
+    let set = RangeSet::of_sorted(decos, true).unwrap();
+    test_spans(&[set], 20, 26, "2=span10/wide 2=span11/wide 2=span12/wide");
 }
 
 #[test]
@@ -547,18 +567,28 @@ fn test_cm6_rangeset_37_spans_reads_from_multiple_sets_at_once() {
     let one = RangeSet::of_sorted(vec![
         mk(2, 3, TestVal::mark("x", 0, 0)),
         mk(5, 10, TestVal::mark("y", 0, 0)),
-    ], false).unwrap();
-    let two = RangeSet::of_sorted(vec![mk(0, 6, TestVal::mark("a", 0, 0))], false).unwrap();
-    let mut builder = TestSpanBuilder { spans: Vec::new() };
-    RangeSet::spans(&[one, two], 0, 12, &mut builder, 0);
+        mk(10, 12, TestVal::mark("z", 0, 0)),
+    ], true).unwrap();
+    let two = RangeSet::of_sorted(vec![
+        mk(0, 6, TestVal::mark("a", 0, 0)),
+        mk(10, 12, TestVal::mark("b", 0, 0)),
+    ], true).unwrap();
+    test_spans(&[one, two], 0, 12, "2=a 1=x/a 2=a 1=y/a 4=y 2=z/b");
 }
 
 #[test]
 fn test_cm6_rangeset_38_spans_orders_active_ranges_by_origin_set() {
-    let one = RangeSet::of_sorted(vec![mk(2, 10, TestVal::mark("a", 0, 0))], false).unwrap();
-    let two = RangeSet::of_sorted(vec![mk(3, 4, TestVal::mark("b", 0, 0))], false).unwrap();
-    let mut builder = TestSpanBuilder { spans: Vec::new() };
-    RangeSet::spans(&[one, two], 0, 10, &mut builder, 0);
+    let one = RangeSet::of_sorted(vec![
+        mk(2, 10, TestVal::mark("a", 0, 0)),
+        mk(20, 30, TestVal::mark("a", 0, 0)),
+    ], true).unwrap();
+    let two = RangeSet::of_sorted(vec![
+        mk(3, 4, TestVal::mark("b", 0, 0)),
+        mk(8, 12, TestVal::mark("b", 0, 0)),
+        mk(18, 22, TestVal::mark("b", 0, 0)),
+    ], true).unwrap();
+    let three = RangeSet::of_sorted(vec![mk(0, 25, TestVal::mark("c", 0, 0))], true).unwrap();
+    test_spans(&[one, two, three], 0, 25, "2=c 1=a/c 1=a/b/c 4=a/c 2=a/b/c 2=b/c 6=c 2=b/c 2=a/b/c 3=a/c");
 }
 
 #[test]
@@ -566,36 +596,65 @@ fn test_cm6_rangeset_39_spans_doesnt_get_confused_by_same_place_points() {
     let set = RangeSet::of_sorted(vec![
         mk(1, 1, TestVal::point("a")),
         mk(1, 1, TestVal::point("b")),
-    ], false).unwrap();
-    let mut builder = TestSpanBuilder { spans: Vec::new() };
-    RangeSet::spans(&[set], 0, 2, &mut builder, 0);
+        mk(1, 1, TestVal::point("c")),
+    ], true).unwrap();
+    test_spans(&[set], 0, 2, "1 [a] [b] [c] 1");
 }
 
 #[test]
 fn test_cm6_rangeset_40_spans_properly_resyncs_active_ranges_after_points() {
     let set = RangeSet::of_sorted(vec![
         mk(0, 20, TestVal::mark("r1", 0, 0)),
+        mk(1, 10, TestVal::mark("r2", 0, 0)),
         mk(3, 12, TestVal::point("p")),
+        mk(4, 8, TestVal::mark("r3", 0, 0)),
+        mk(5, 20, TestVal::mark("r4", 0, 0)),
     ], true).unwrap();
-    let mut builder = TestSpanBuilder { spans: Vec::new() };
-    RangeSet::spans(&[set], 0, 20, &mut builder, 0);
+    test_spans(&[set], 0, 20, "1=r1 2=r2/r1 9=[p] 8=r4/r1");
 }
 
 #[test]
 fn test_cm6_rangeset_41_spans_doesnt_split_spans_on_ignored_ranges() {
-    let set = RangeSet::of_sorted(vec![mk(0, 10, TestVal::mark("a", 0, 0))], false).unwrap();
-    let mut builder = TestSpanBuilder { spans: Vec::new() };
-    RangeSet::spans(&[set], 0, 30, &mut builder, 0);
+    struct CustomCollector {
+        pub ranges: Vec<usize>,
+    }
+    impl SpanIterator<TestVal> for CustomCollector {
+        fn span(&mut self, from: usize, to: usize, _active: &[TestVal], _open: usize) {
+            self.ranges.push(from);
+            self.ranges.push(to);
+        }
+        fn point(&mut self, from: usize, to: usize, _value: &TestVal, _active: &[TestVal], _open: usize, _index: usize) {
+            self.ranges.push(from);
+            self.ranges.push(to);
+        }
+    }
+    let set = RangeSet::of_sorted(vec![
+        mk(0, 10, TestVal::mark("a", 0, 0)),
+        mk(20, 30, TestVal::point("b")),
+    ], true).unwrap();
+    let mut collector = CustomCollector { ranges: Vec::new() };
+    RangeSet::spans(&[set], 0, 30, &mut collector, 0);
+    let s: Vec<String> = collector.ranges.into_iter().map(|n| n.to_string()).collect();
+    assert_eq!(s.join(","), "0,20,20,30");
 }
 
 #[test]
 fn test_cm6_rangeset_42_spans_omits_points_that_are_covered_by_previous_point() {
+    struct PointCounter(usize);
+    impl SpanIterator<TestVal> for PointCounter {
+        fn span(&mut self, _from: usize, _to: usize, _active: &[TestVal], _open: usize) {}
+        fn point(&mut self, _from: usize, _to: usize, _val: &TestVal, _active: &[TestVal], _open: usize, _index: usize) {
+            self.0 += 1;
+        }
+    }
     let set = RangeSet::of_sorted(vec![
         mk(0, 4, TestVal::point("p1")),
+        mk(1, 5, TestVal::mark("a", 0, 0)),
         mk(2, 4, TestVal::point("p2")),
     ], true).unwrap();
-    let mut builder = TestSpanBuilder { spans: Vec::new() };
-    RangeSet::spans(&[set], 0, 10, &mut builder, 0);
+    let mut counter = PointCounter(0);
+    RangeSet::spans(&[set], 0, 10, &mut counter, -1);
+    assert_eq!(counter.0, 1);
 }
 
 #[test]
@@ -603,9 +662,10 @@ fn test_cm6_rangeset_43_spans_puts_smaller_spans_inside_bigger_ones_with_same_ra
     let set = RangeSet::of_sorted(vec![
         mk(0, 3, TestVal::mark("x", 0, 0)),
         mk(0, 1, TestVal::mark("a", 0, 0)),
+        mk(1, 2, TestVal::mark("b", 0, 0)),
+        mk(2, 3, TestVal::mark("c", 0, 0)),
     ], true).unwrap();
-    let mut builder = TestSpanBuilder { spans: Vec::new() };
-    RangeSet::spans(&[set], 0, 3, &mut builder, 0);
+    test_spans(&[set], 0, 3, "1=a/x 1=b/x 1=c/x");
 }
 
 // -------------------------------------------------------------------------
