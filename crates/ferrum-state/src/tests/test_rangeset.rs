@@ -22,8 +22,8 @@ impl TestVal {
         Self {
             name: Some(name.to_string()),
             pos: None,
-            start_side: 0,
-            end_side: 0,
+            start_side: 1,
+            end_side: 1,
             point: true,
         }
     }
@@ -42,8 +42,8 @@ impl TestVal {
         Self {
             name: None,
             pos: Some(pos),
-            start_side: 0,
-            end_side: 0,
+            start_side: 1,
+            end_side: -1,
             point: false,
         }
     }
@@ -255,7 +255,7 @@ fn test_cm6_rangeset_13_map_defaults_to_exclusive_on_both_sides() {
 
 #[test]
 fn test_cm6_rangeset_14_map_drops_point_ranges() {
-    let set = RangeSet::of_sorted(vec![mk(1, 2, TestVal::mark("a", 0, 0))], false).unwrap();
+    let set = RangeSet::of_sorted(vec![mk(1, 2, TestVal::mark("a", 1, -1))], false).unwrap();
     let changes = ChangeSet::of_specs(&[
         ChangeSpec::replace(1, 2, ""),
         ChangeSpec::replace(1, 1, "x"),
@@ -267,7 +267,7 @@ fn test_cm6_rangeset_14_map_drops_point_ranges() {
 #[test]
 fn test_cm6_rangeset_15_map_drops_ranges_in_deleted_regions() {
     let set = RangeSet::of_sorted(vec![
-        mk(1, 2, TestVal::mark("a", 0, 0)),
+        mk(1, 2, TestVal::mark("a", 1, -1)),
         mk(3, 3, TestVal::point("b")),
     ], true).unwrap();
 
@@ -313,6 +313,8 @@ fn test_cm6_rangeset_18_map_can_collapse_chunks() {
     let changes = ChangeSet::of_specs(&[ChangeSpec::replace(30, 4500, "")], 5100);
     let smaller = set.map(changes.desc());
     assert!(smaller.chunk.len() < set.chunk.len());
+    let empty = smaller.map(ChangeSet::of_specs(&[ChangeSpec::replace(0, 1000, "")], 1000).desc());
+    assert!(empty.is_empty());
 }
 
 #[test]

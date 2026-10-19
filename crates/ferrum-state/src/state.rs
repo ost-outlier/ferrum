@@ -174,8 +174,13 @@ impl EditorState {
 
     /// Returns a function that can categorize characters into CharCategory at the given position.
     pub fn char_categorizer(&self, _at: usize) -> impl Fn(&str) -> crate::char::CharCategory {
-        // TDD RED phase stub: currently returns Other so unimplemented tests fail
-        |_ch: &str| crate::char::CharCategory::Other
+        |ch: &str| {
+            if let Some(c) = ch.chars().next() {
+                crate::char::categorize_char(c)
+            } else {
+                crate::char::CharCategory::Other
+            }
+        }
     }
 
     /// Creates a `ChangeSet` from a `ChangeSpec` for this state's document.
@@ -298,12 +303,15 @@ impl EditorState {
             self.config.clone()
         };
 
-        // Update state fields before moving fields out of tr
+        // Update state fields: look up existing fields by id, or initialize and update newly added fields
         let mut new_field_values = Vec::with_capacity(new_config.state_fields.len());
-        for (i, field) in new_config.state_fields.iter().enumerate() {
-            let old_val = self.field_values.get(i).map(|v| v.as_ref() as &dyn Any);
-            if let Some(old) = old_val {
+        for field in new_config.state_fields.iter() {
+            if let Some(&old_idx) = self.config.field_map.get(&field.id()) {
+                let old = self.field_values[old_idx].as_ref();
                 new_field_values.push(field.update(old, &tr));
+            } else {
+                let init_val = field.init(self);
+                new_field_values.push(field.update(init_val.as_ref(), &tr));
             }
         }
 
@@ -319,13 +327,6 @@ impl EditorState {
             dynamic_values: Vec::new(),
             field_values: new_field_values,
         };
-
-        // If any newly added state fields need initialization
-        while next_state.field_values.len() < next_state.config.state_fields.len() {
-            let idx = next_state.field_values.len();
-            let init_val = next_state.config.state_fields[idx].init(&next_state);
-            next_state.field_values.push(init_val);
-        }
 
         // Recompute dynamic facets
         let mut new_dynamic_values =
