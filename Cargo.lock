@@ -1640,6 +1640,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferrum-language"
+version = "0.1.0"
+dependencies = [
+ "ferrum-state",
+ "ferrum-view",
+ "regex",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "ferrum-state"
 version = "0.1.0"
 dependencies = [

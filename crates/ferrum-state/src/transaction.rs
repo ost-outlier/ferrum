@@ -160,6 +160,7 @@ pub struct TransactionTime(pub u64);
 
 /// A transaction represents an atomic update to an `EditorState`.
 /// In Ferrum, states are immutable — transactions take an existing state and produce a new one.
+#[derive(Clone)]
 pub struct Transaction {
     pub(crate) start_state: Arc<EditorState>,
     pub(crate) changes: ChangeSet,
@@ -171,6 +172,11 @@ pub struct Transaction {
 }
 
 impl Transaction {
+    /// The resulting new state produced by applying this transaction.
+    pub fn state(&self) -> Arc<EditorState> {
+        self.start_state.apply(self.clone())
+    }
+
     /// The state that this transaction starts from.
     pub fn start_state(&self) -> &Arc<EditorState> {
         &self.start_state

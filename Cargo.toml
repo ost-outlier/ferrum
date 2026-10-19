@@ -5,6 +5,7 @@ members = [
     "crates/ferrum-commands",
     "crates/ferrum-view",
     "crates/ferrum-view-gpui",
+    "crates/ferrum-language",
     "crates/ferrum",
 ]
 

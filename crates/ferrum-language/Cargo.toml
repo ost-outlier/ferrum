@@ -1,0 +1,17 @@
+[package]
+name = "ferrum-language"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Language support infrastructure, syntax trees, indentation, and folding for the Ferrum editor engine"
+
+[dependencies]
+ferrum-state = { path = "../ferrum-state" }
+ferrum-view = { path = "../ferrum-view" }
+regex = "1.10"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+smallvec = { workspace = true }
+unicode-segmentation = { workspace = true }
