@@ -129,6 +129,8 @@ For every item whose cost class in `behaviors.md` is local or logarithmic, measu
 
 As in `1-parity-audit.md` §11: main session runs the mechanical gates and writes the report; subagents (at most 4 in parallel, one subagent card) do the reading-based checks per module; each appends findings to `raw/conformance.jsonl` as it goes and lists unchecked ids at the end.
 
+References follow `1-parity-audit.md` §11.1 (one root, no scratch paths, symbol and version with every `file:line`, qualified ids, reading header). Every reproduction in the report names the fixture or the replayer file it comes from, so the implementer can re-run it without this session. The reference checker runs as part of verification.
+
 ---
 
 ## 6. Report and gate

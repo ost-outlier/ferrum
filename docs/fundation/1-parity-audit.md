@@ -28,6 +28,7 @@ The first audit (`docs/parity/state/`) compared cm6 with existing Ferrum code. M
 | All seven parallel subagents hit an account usage limit at the same time. Work survived only because it was in files. | Subagents append each finished item to their raw file; at most 4 run in parallel (section 11). |
 | Every subagent read ~25k tokens of instructions. | One condensed subagent card per crate (section 11). |
 | The 10% verification sample found 5 real errors and the extension sample came back clean. | Verification is kept, and extended with mechanical checks (section 12). |
+| References were written for the session that produced them, not for the AI that reads them later: paths relative to three different, unstated roots (`state/src/…` meant `CodeMirror6/state/src/…`, `crates/…` meant `ferrum/crates/…`, `rules.md` existed in two places); evidence ids such as `C1 R9` or `P7` that only resolve if one knows which raw file and section; scratch paths under `/tmp` that disappear after the session; line numbers without the symbol or the commit they refer to. | One path root, qualified evidence ids, a resolution index, no scratch paths, `file:line` plus symbol plus version; checked mechanically (section 11.1). |
 
 ---
 
@@ -220,13 +221,25 @@ Port notes: helpers used, values that change under the D1/D2 decisions (with the
 - **No boilerplate.** A reason shared by many rows is written once as a group entry (for example `group: TS-PHANTOM`) and referenced by id; it must be true of every member.
 - Every subagent ends by listing unfinished ids. An unlisted gap counts as a falsified result.
 
+### 11.1 References an AI can follow
+
+Every deliverable is read later by an AI (implementer, conformance auditor, next audit) that has none of this session's context. A reference is valid only if that reader can open the target with the reference alone.
+
+1. **One root.** Every path is relative to `/workspace/`: `CodeMirror6/state/src/text.ts:38`, `ferrum/crates/ferrum-view/src/lib.rs:12`, `ferrum/docs/parity/view/behaviors.md`, `ferrum/docs/fundation/rules.md`. No path relative to an unstated directory, no bare file names (`rules.md`), no `./`.
+2. **No scratch paths.** Nothing under `/tmp`, a scratchpad or a home directory appears in a deliverable. Scripts and data a reader needs are copied into `ferrum/docs/parity/<crate>/oracle/` first and referenced there.
+3. **Code references carry the symbol and the version.** Write `` `CodeMirror6/view/src/cursor.ts:102` (`byGroup`) ``. Each deliverable states once, at the top, the cm6 package version and the Ferrum commit its line numbers refer to, so a reader can recover a drifted line by symbol.
+4. **Qualified evidence ids.** An id is written so that it names its file: `view/raw/C3-fixtures.jsonl#F0042`, `view/behaviors.md#view.moveVertically.B3`, `_cross-crate.md#XC-041`. Each id is defined in exactly one place. Short forms (`R9`, `C1 P7`) are allowed only inside the file that defines them.
+5. **Resolution index.** `ferrum/docs/parity/README.md` lists every id scheme (inventory rows, behaviors, tests, fixtures, register entries, decisions, human decisions), the file that defines it and how to resolve it. A new scheme is added there before it is used.
+6. **Reading header.** Every deliverable starts with three lines: what the file is, the versions (3), the id schemes it uses (5).
+7. **Mechanical check.** Verification (section 12) runs a reference checker: every path exists, every line number is within the file and the cited symbol appears within a few lines of it, every qualified id resolves, no scratch path remains.
+
 ---
 
 ## 12. Verification (P5)
 
 A fresh context (subagent or new session) that wrote no rows:
 
-1. **Mechanical checks:** totals recounted from the cm6 sources (A1, T1); no duplicate ids; every in-scope item has at least one behavior; every behavior has fixtures or a `golden_note`; every fixture reproduces bit-identically when its generator is re-run with the recorded seed; every test case has a classification; repeated reason texts across rows are listed and checked against each member.
+1. **Mechanical checks:** the reference checker of section 11.1; totals recounted from the cm6 sources (A1, T1); no duplicate ids; every in-scope item has at least one behavior; every behavior has fixtures or a `golden_note`; every fixture reproduces bit-identically when its generator is re-run with the recorded seed; every test case has a classification; repeated reason texts across rows are listed and checked against each member.
 2. **Sample:** at least 10% of items (minimum 20), chosen with a recorded seed, plus every `CONTRACT` item: re-derive the behavior list from the cm6 source and look for missing behaviors; re-run three fixtures per item; check the test classifications of the sampled items.
 3. Mismatches are fixed and the sample is extended with a new seed until a sample comes back clean.
 
