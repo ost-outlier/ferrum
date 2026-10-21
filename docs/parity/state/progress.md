@@ -30,9 +30,9 @@ Baseline: `cargo test -p ferrum-state` → 177 passed, 0 failed, 0 ignored (2026
 | C7 main-session rows | `index.ts` | `lib.rs`, facade | 0 | 78 | 0 | 0 | done (in `api-matrix.md`) |
 | A4 claims | — | READMEs, doc comments, facade, vision doc | — | — | — | — | done (raw/A4-claims.md) |
 | A5 cross-crate, decision evidence, merge | — | — | — | — | — | — | done (`../_cross-crate.md`, `../decisions-evidence.md`, deliverables) |
-| Verification (section 9) | — | — | — | — | — | — | in progress |
+| Verification (section 9) | — | — | — | — | — | — | done (`verification.md`; corrections applied) |
 
-Done: 10 of 11 chunks (verification in progress).
+Done: 11 of 11 chunks. Crate is at the human gate.
 
 Session log: 2026-10-21, chunks C1–C6 and A4 were interrupted mid-way by an account usage limit and then resumed from their saved state. Partial files present at that point: `raw/C1-api.md`, `raw/C1-behaviors.md`, `raw/C2-api.md`, `raw/C3-api.md`, `raw/C4-api.md`, `raw/C5-behaviors.md`. The verification pass must check that the files written before and after the resume are consistent with each other.
 
@@ -41,7 +41,7 @@ Session log: 2026-10-21, chunks C1–C6 and A4 were interrupted mid-way by an ac
 ## Open questions
 
 (filled during merge)
-- Q-merge-1: `raw/A4-claims.md` reports 0 mismatches in 5000 random `EditorSelection.create` normalization cases, while `raw/C3-*` reports a main-index mismatch found by its oracle (`create([cursor(12), range(12,18), cursor(12)], 2)`: cm6 main 1, Ferrum main 0). The generators differ (A4 likely never generates duplicate equal ranges). To reconcile in the merge and check in verification.
+- Q-merge-1 (resolved by verification check 4a; see `oracle.md`): `raw/A4-claims.md` reports 0 mismatches in 5000 random `EditorSelection.create` normalization cases, while `raw/C3-*` reports a main-index mismatch found by its oracle (`create([cursor(12), range(12,18), cursor(12)], 2)`: cm6 main 1, Ferrum main 0). The generators differ (A4 likely never generates duplicate equal ranges). Both results are correct; the A4 generator never builds the triggering input.
 
 ## Deliverables (merge, 2026-10-21)
 
