@@ -1,0 +1,10 @@
+## 4. Roteiro e Diretrizes para Próximas Etapas
+### 4.1 Fronteira Nativa de Renderização GPU (`ferrum-view-gpui`) [MAPEAMENTO E ROADMAP]
+- **Impedance Mismatch Documento $\leftrightarrow$ GPU**: O Ferrum e o CodeMirror 6 indexam posições lógicas por caracteres Unicode (codepoints no Rope), enquanto motores gráficos de GPU (GPUI/HarfBuzz) operam sobre fatias de memória em **bytes UTF-8**. A bridge deve manter conversão estrita bidirecional (`char_to_byte_offset` e `byte_to_char_offset`).
+- **Cenários a Investigar e Implementar em Fases Futuras**:
+  1. **Tabulações Físicas (`\t`)**: Sincronização entre a largura física de avanço do glifo de tabulação na GPU e o `tab_size` configurado no `EditorState`.
+  2. **Soft Line Wrapping (Quebra de Linha Suave)**: Mapeamento 1:N entre uma linha lógica do buffer e múltiplas linhas visuais dobradas na viewport, com recálculo de hit-testing de clique e navegação vertical suave (`cursor_line_up` / `cursor_line_down` em linhas visuais vs lógicas).
+  3. **Texto Bidirecional (Bidi / RTL)**: Tratamento de scripts árabes e hebraicos onde a ordem visual de glifos inverte em relação à ordem lógica do buffer.
+  4. **Grapheme Clusters Compostos e Font Fallback**: Renderização e medição de largura para sequências ZWJ de emojis, bandeiras e seleção de fontes alternativas (*font fallback*) quando a fonte primária não possui determinados glifos.
+  5. **Composição IME (Input Method Editor)**: Suporte a janelas de composição transitória para caracteres CJK (chinês, japonês, coreano) e acentuações mortas antes do commit definitivo na transação.
+- **Diretriz de Investigação**: Ao iniciar o desenvolvimento de cada um desses recursos, realizar uma auditoria aprofundada de edge cases gráficos e matemáticos, cobrindo todos os cenários com testes unitários na crate `ferrum-view-gpui`.

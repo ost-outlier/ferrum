@@ -9,6 +9,8 @@
 > **The extensible, embeddable text editor engine for Rust.**  
 > Built with 1:1 mathematical and architectural parity to [CodeMirror 6](https://code.haverbeke.berlin/codemirror), designed for native desktop, mobile, embedded environments, and WebAssembly.
 
+> **Status:** the foundation crates (`ferrum-state`, `ferrum-view`, `ferrum-language`, `ferrum-commands`) are under a parity audit against CodeMirror 6. Parity is the goal, not a verified fact: the feature, performance and test-parity claims in this README have not been verified yet.
+
 ---
 
 ## Why Ferrum?
@@ -33,53 +35,70 @@ Modern software that requires rich text or code editing often faces a difficult 
 
 ## Architectural Mapping: Ferrum ↔ CodeMirror 6
 
-Ferrum transposes the modular packages of CodeMirror 6 into modular, decoupled Rust crates, structured into cohesive architectural layers:
+Ferrum ports the *behavior* of CodeMirror 6's platform-independent logic, not its DOM machinery. The foundation is four headless crates, layered exactly like their cm6 counterparts:
 
-### Layer 0 — Core State & Operational Transformation (Pure Rust, Zero UI, MIT)
+```
+@codemirror/state     ⇔  ferrum-state      (no Ferrum deps)
+       ▲                        ▲
+@codemirror/view      ⇔  ferrum-view       → state
+       ▲                        ▲
+@codemirror/language  ⇔  ferrum-language   → state, view
+       ▲                        ▲
+@codemirror/commands  ⇔  ferrum-commands   → state, view, language
+```
 
-| CodeMirror 6 Package | Ferrum Crate | Responsibility |
-| :--- | :--- | :--- |
-| [`@codemirror/state`](https://code.haverbeke.berlin/codemirror/state) | [`ferrum-state`](crates/ferrum-state) | `EditorState`, `Text` (Rope), `ChangeSet` / `ChangeDesc` (OT), `EditorSelection`, `RangeSet` (B-Tree interval tree), `Facet`, `Compartment`, `StateField`, Unicode grapheme clusters. |
+`commands` is the top of the foundation, not its base: in cm6 many commands receive the `EditorView` (motion by visual line, line boundaries, bidi) and use `language` for indentation, syntax-tree motion and bracket matching. Above the foundation sit feature crates (search, autocomplete, lint, …) and rendering surfaces. No foundation crate depends on a UI framework, a text shaper or a GPU library; geometry and input reach `ferrum-view` through traits that surfaces implement.
 
-### Layer 1 — Editing Commands & Transactional History (Pure Rust, Zero UI, MIT)
+> Current code does not match this graph yet: `ferrum-commands` depends on `ferrum-state` and `ferrum-language` but not on `ferrum-view`, so view-dependent commands are state-only approximations, and keymaps live in `ferrum-commands` instead of `ferrum-view`. This is part of the audit.
 
-| CodeMirror 6 Package | Ferrum Crate | Responsibility |
-| :--- | :--- | :--- |
-| [`@codemirror/commands`](https://code.haverbeke.berlin/codemirror/commands) | [`ferrum-commands`](crates/ferrum-commands) | Pure state editing commands, grapheme navigation, line manipulation, indentation, keymaps (`KEYMAP` facet), line/block commenting (`COMMENT_TOKENS`), and transactional undo/redo history (`history`, `isolate_history`). |
-
-### Layer 2 — Language Infrastructure & Syntax Trees (Pure Rust, Zero UI, MIT)
-
-| CodeMirror 6 Package | Ferrum Crate | Responsibility |
-| :--- | :--- | :--- |
-| [`@codemirror/language`](https://code.haverbeke.berlin/codemirror/language) + [`@codemirror/streamparser`](https://code.haverbeke.berlin/codemirror/streamparser) | [`ferrum-language`](crates/ferrum-language) | Contextual syntax-driven indentation (`get_indentation`, `IndentContext`), block delimiter matching, `StreamLanguage` tokenizer, code folding state, and syntax highlighting spans. |
-
-### Layer 3 — Viewport Virtualization & Layout Contracts (Pure Rust, Zero UI, MIT)
+### Layer 0 — State (headless)
 
 | CodeMirror 6 Package | Ferrum Crate | Responsibility |
 | :--- | :--- | :--- |
-| [`@codemirror/view`](https://code.haverbeke.berlin/codemirror/view) (Core) | [`ferrum-view`](crates/ferrum-view) | Abstract `EditorView`, `Viewport` calculation, `HeightMap` B-Tree (line height virtualization, block widgets, text gaps), `DecorationSet` (`RangeSet<Decoration>`), and `ViewUpdate` contracts. |
+| [`@codemirror/state`](https://code.haverbeke.berlin/codemirror/state) | [`ferrum-state`](crates/ferrum-state) | `EditorState`, `Text`, `ChangeSet` / `ChangeDesc`, `EditorSelection`, transactions, annotations and effects, `Facet`, `StateField`, `Compartment`, `RangeSet`, character and column utilities. |
 
-### Layer 4 — Hardware-Accelerated Native Surface Adapters (GPU Bridges)
+### Layer 1 — View model (headless; layout through traits)
 
-| Platform / Framework | Ferrum Bridge Crate | License | Responsibility |
+| CodeMirror 6 Package | Ferrum Crate | Responsibility |
+| :--- | :--- | :--- |
+| [`@codemirror/view`](https://code.haverbeke.berlin/codemirror/view) (platform-independent part) | [`ferrum-view`](crates/ferrum-view) | `EditorView` model, view plugins and `ViewUpdate`, viewport and `HeightMap`, decorations (`DecorationSet`), keymaps, cursor motion and bidi ordering, and the layout/input traits that surfaces implement. DOM rendering, CSS theming and DOM input handling are not ported. |
+
+### Layer 2 — Language infrastructure (headless)
+
+| CodeMirror 6 Package | Ferrum Crate | Responsibility |
+| :--- | :--- | :--- |
+| [`@codemirror/language`](https://code.haverbeke.berlin/codemirror/language) + [`@codemirror/streamparser`](https://code.haverbeke.berlin/codemirror/streamparser) | [`ferrum-language`](crates/ferrum-language) | Syntax tree abstraction and parse scheduling (tree-sitter planned instead of Lezer), language data, indentation, folding, bracket matching, highlighting. |
+
+### Layer 3 — Commands (headless)
+
+| CodeMirror 6 Package | Ferrum Crate | Responsibility |
+| :--- | :--- | :--- |
+| [`@codemirror/commands`](https://code.haverbeke.berlin/codemirror/commands) | [`ferrum-commands`](crates/ferrum-commands) | Editing and motion commands, standard/default keymaps, undo/redo history, comment toggling. |
+
+### Surfaces (rendering, input, OS integration)
+
+| Platform / Framework | Ferrum Crate | License | Responsibility |
 | :--- | :--- | :--- | :--- |
-| **GPUI** (macOS Metal / Linux Vulkan / Windows DirectX) | [`ferrum-view-gpui`](crates/ferrum-view-gpui) | **Apache-2.0** | GPU window lifecycle, HarfBuzz text shaping, mouse drag/click gestures, OS clipboard, cursor blink animation, and UTF-8 byte $\leftrightarrow$ char offset translation. |
-| **wgpu** / **Vello** *(Planned)* | `ferrum-view-wgpu` | **MIT / Apache-2.0** | Autonomous GPU renderer for embedded systems, games, and WebAssembly targets. |
+| **GPUI** (desktop) | [`ferrum-view-gpui`](crates/ferrum-view-gpui) | **Apache-2.0** | Window, text shaping through GPUI, drawing, keyboard/mouse/clipboard input; implements `ferrum-view`'s traits. |
+| **wgpu** + `winit` + `cosmic-text` *(planned)* | `ferrum-view-wgpu` | **MIT / Apache-2.0** | Portable surface (desktop first; mobile and web canvas are research items). |
 
-### Layer 5 — Unified Facade (Umbrella Crate)
+### Facade (umbrella crate)
 
 | Package | Ferrum Crate | Responsibility |
 | :--- | :--- | :--- |
-| `codemirror` (Meta-package) | [`ferrum`](crates/ferrum) | Top-level facade re-exporting the entire engine with granular Cargo feature flags (`"commands"`, `"view"`, `"language"`). |
+| `codemirror` (meta-package) | [`ferrum`](crates/ferrum) | Re-exports the foundation behind feature flags. Current features: `commands`, `view` (default). Feature flags follow the dependency graph. |
 
-### Future Ecosystem (Planned Extensions)
+### Future ecosystem (planned, above the foundation)
 
 | CodeMirror 6 Package | Planned Crate | Responsibility |
 | :--- | :--- | :--- |
-| [`@codemirror/search`](https://code.haverbeke.berlin/codemirror/search) | `ferrum-search` | Regular expression and substring search engine, highlight decoration sets, and search panel state. |
-| [`@codemirror/autocomplete`](https://code.haverbeke.berlin/codemirror/autocomplete) | `ferrum-autocomplete` | Completion sources, fuzzy matching, ranking algorithms, and tooltip layout contracts. |
-| [`@codemirror/lint`](https://code.haverbeke.berlin/codemirror/lint) | `ferrum-lint` | Inline diagnostic squiggles, error gutters, and linter lifecycle management. |
-| [`@codemirror/collab`](https://code.haverbeke.berlin/codemirror/collab) | `ferrum-collab` | Real-time collaborative editing protocol using OT rebasing and CRDT integration. |
+| [`@codemirror/search`](https://code.haverbeke.berlin/codemirror/search) | `ferrum-search` | Search and replace (substring and regex), match decorations, search panel state. |
+| [`@codemirror/autocomplete`](https://code.haverbeke.berlin/codemirror/autocomplete) | `ferrum-autocomplete` | Completion sources, matching and ranking, snippets, bracket closing. |
+| [`@codemirror/lint`](https://code.haverbeke.berlin/codemirror/lint) | `ferrum-lint` | Diagnostics model and decorations. |
+| [`@codemirror/collab`](https://code.haverbeke.berlin/codemirror/collab) | `ferrum-collab` | Central-authority collaborative editing built on `ChangeSet` mapping. |
+| [`@codemirror/merge`](https://code.haverbeke.berlin/codemirror/merge) | `ferrum-merge` | Diffing and merge views. |
+| `@codemirror/lang-*` | `ferrum-lang-*`, `ferrum-markdown` | Language packages (grammar, language data, indentation, folding, highlighting). |
+
 
 ---
 
@@ -89,7 +108,7 @@ Add `ferrum` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ferrum = { version = "0.1", features = ["commands", "view", "language"] }
+ferrum = { version = "0.1", features = ["commands", "view"] }
 ```
 
 ### 1. Basic Editing State, Keymaps, and History
