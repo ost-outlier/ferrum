@@ -1,25 +1,25 @@
 # Audit scope: `ferrum-language` vs `@codemirror/language`
 
-Use with `1-parity-audit.md`. Audit order: **3 of 4** (depends on `ferrum-state` and `ferrum-view`; may overlap with the view audit once the view inventory is approved).
+Use with `1-parity-audit.md` (specification audit for a new crate). Audit order: **3 of 4**; it depends on `ferrum-state` and `ferrum-view` and may overlap with the view audit once the view's Gate 1 (dispositions) is approved. The language crate is rebuilt from cm6: the existing `ferrum/crates/ferrum-language/` is not read, tested or described.
+
+Versions: cm6 `@codemirror/language` 6.13.1 (`CodeMirror6/language/package.json`), `@codemirror/streamparser` as in `CodeMirror6/streamparser/package.json`; Lezer packages at the versions the harness installs (record them in `ferrum/docs/parity/language/progress.md`).
 
 This audit is different from the others. cm6's `language` is built on Lezer (`@lezer/common` trees, `NodeType`, `NodeProp`, incremental parsing with `TreeFragment`s, mixed parsing; `@lezer/highlight` tags). Ferrum intends to use tree-sitter behind its own abstraction (decision D3). So the audit has two goals:
 
-1. **Behavior inventory, independent of the parser.** What `language` does for an editor (which tree is current, when parsing happens, how indentation, folding, bracket matching, highlighting and language data are computed and exposed), as numbered behaviors.
-2. **Parser-coupling map.** For each behavior, which Lezer capability it relies on (node props, `resolveInner`, `enterUnfinishedNodesBefore`, `TreeCursor`, `NodeIterator`, fragments, `Parser.startParse`, `parseMixed`, tags). This is the evidence for D3, not a design.
-
-Ferrum's current crate is close to a stub; expect most items to be `MISSING` or `BLOCKED: D3`. Do not spend effort describing stub internals beyond what the claims audit needs.
+1. **Behavior specification, independent of the parser.** What `language` does for an editor (which tree is current, when parsing happens, how indentation, folding, bracket matching, highlighting and language data are computed and exposed), as behaviors with fixtures.
+2. **Parser-coupling map.** For each behavior, which Lezer capability it relies on (node props, `resolveInner`, `enterUnfinishedNodesBefore`, `TreeCursor`, `NodeIterator`, fragments, `Parser.startParse`, `parseMixed`, tags), with `file:line`. This is the evidence for D3 and the input to the syntax contract (`contracts.md`); it is not a design. The implementation sketch (`1-parity-audit.md` §17) may propose how a tree-sitter backend answers each capability, marked as a sketch.
 
 ## Scope
 
 |  | cm6 | Ferrum |
 |---|---|---|
-| Source | `CodeMirror6/language/src/`: `language.ts`, `indent.ts`, `fold.ts`, `highlight.ts`, `matchbrackets.ts`, `stream-parser.ts`, `isolate.ts`, `index.ts`; and `CodeMirror6/streamparser/src/` (`stringstream.ts`, `index.ts`) | `ferrum/crates/ferrum-language/src/`: `language.rs`, `tree.rs`, `indent.rs`, `fold.rs`, `highlight.rs`, `stream.rs`, `javascript.rs`, `lib.rs` |
-| Tests | `CodeMirror6/language/test/`: `test-syntax.ts`, `test-fold.ts`, `test-stream-parser.ts` | `ferrum/crates/ferrum-language/src/tests/*.rs` |
-| Behavior tests elsewhere (read-only, for T7) | `CodeMirror6/lang-javascript/test/test-indent.ts`, `CodeMirror6/lang-markdown/test/test-commands.ts`, and `CodeMirror6/commands/test/test-commands.ts` cases that use `javascriptLanguage`, `htmlLanguage` or `indentUnit` | n/a |
-| Symbol list | `CodeMirror6/language/src/README.md` | `ferrum/crates/ferrum-language/src/README.md`, `ferrum/crates/ferrum-language/README.md` |
-| Dependencies | `@codemirror/state`, `@codemirror/view`, `@codemirror/streamparser`, `@lezer/common`, `@lezer/highlight`, `@lezer/lr`, `style-mod` | `ferrum-state`, `ferrum-view`, `regex`, `serde`, `serde_json`, `smallvec`, `unicode-segmentation` |
+| Source | `CodeMirror6/language/src/`: `language.ts`, `indent.ts`, `fold.ts`, `highlight.ts`, `matchbrackets.ts`, `stream-parser.ts`, `isolate.ts`, `index.ts`; `CodeMirror6/streamparser/src/` (`stringstream.ts`, `index.ts`) | none (new crate) |
+| Tests | `CodeMirror6/language/test/`: `test-syntax.ts`, `test-fold.ts`, `test-stream-parser.ts` | none |
+| Behavior tests elsewhere (for T7) | `CodeMirror6/lang-javascript/test/test-indent.ts`, `CodeMirror6/lang-markdown/test/test-commands.ts`, and the cases of `CodeMirror6/commands/test/test-commands.ts` that use `javascriptLanguage`, `htmlLanguage` or `indentUnit` | n/a |
+| Symbol list | `CodeMirror6/language/src/README.md` | not audited |
+| Dependencies | `@codemirror/state`, `@codemirror/view`, `@codemirror/streamparser`, `@lezer/common`, `@lezer/highlight`, `@lezer/lr`, `style-mod` | lower crates: `ferrum-state`, `ferrum-view` (public APIs and conformance reports) |
 
-`@lezer/*` packages are not in the local mirror. Where a behavior depends on Lezer internals, cite the cm6 call site and describe the Lezer contract from its documentation; mark the item `HUMAN DECISION` if the contract cannot be established.
+The `@lezer/*` packages are not in the local mirror: install them in the harness with npm (`@lezer/common`, `@lezer/lr`, `@lezer/highlight`, and the grammars the tests use, such as `@lezer/javascript`, `@lezer/html`, `@lezer/markdown`), read their sources there, and produce fixtures with the real grammars. Cite Lezer code as `<package> <version> <file>:<line>` (`ferrum/docs/parity/README.md`, "External sources").
 
 ## Chunks (suggested)
 
@@ -29,22 +29,25 @@ Ferrum's current crate is close to a stub; expect most items to be `MISSING` or 
 4. `fold.ts`
 5. `matchbrackets.ts`
 6. `highlight.ts` (style model: D7; tags: D3)
-7. `stream-parser.ts` + `streamparser/src`
+7. `stream-parser.ts` + `CodeMirror6/streamparser/src/`
 8. `isolate.ts`
-9. Test audit
+9. Tests (including the behavior tests elsewhere)
 
 ## Special attention
 
-- **Parse scheduling.** cm6 parses incrementally with a time budget, in the viewport first, and continues in the background (`ParseWorker`). Record every timing, budget and viewport behavior: they matter for large documents regardless of parser.
-- **Indentation.** `getIndentation` resolution order (`indentService` first, then syntax), `IndentContext` options (`overrideIndentation`, `simulateBreak`, `simulateDoubleBreak`), `TreeIndentContext` (`baseIndent`, `baseIndentFor`, `continue`, `textAfter`), `delimitedIndent`/`continuedIndent`/`flatIndent`, `indentOnInput`, `indentUnit` validation. Ferrum's tests for indent-unit errors use `should_panic`: check against cm6 (which throws on invalid config) and against `rules.md` (no panics in production paths).
-- **Folding.** `foldService`, `foldNodeProp`, `foldInside`, `foldable`, `foldState` mapping through changes, `foldEffect`/`unfoldEffect`, fold commands and keymap, `codeFolding` config, placeholder widget, `foldGutter` (model in core, drawing in surface).
-- **Bracket matching.** `matchBrackets` with and without a tree, `bracketMatching` config, `bracketMatchingHandle`. The Ferrum crate README lists `match_brackets`; check whether it exists.
-- **Tests outside the package.** Behaviors with no test in `CodeMirror6/language/test/` are common. Link them to `lang-*` or `commands` tests where those exist; otherwise record "no cm6 test".
+- **Parse scheduling.** cm6 parses incrementally with a time budget, viewport first, continuing in the background (`ParseWorker`). Record every timing, budget and viewport behavior: they matter for large documents regardless of parser. Time-budget behavior is a hazard (`Date.now()`, `1-parity-audit.md` §9) and a native opportunity (parsing off the main thread changes observable behavior: list it as such in the sketch, §17.3).
+- **Indentation.** `getIndentation` resolution order (`indentService` first, then syntax), `IndentContext` options (`overrideIndentation`, `simulateBreak`, `simulateDoubleBreak`), `TreeIndentContext` (`baseIndent`, `baseIndentFor`, `continue`, `textAfter`), `delimitedIndent`/`continuedIndent`/`flatIndent`, `indentOnInput` (a `transactionFilter` returning `[tr, {changes, sequential: true}]`, which needs the state's full transaction pipeline: `ferrum/docs/parity/_cross-crate.md` XC-033), `indentUnit` validation (cm6 throws on invalid configuration: an error-contract question).
+- **Folding.** `foldService`, `foldNodeProp`, `foldInside`, `foldable`, `foldState` mapping through changes (fold decorations use non-inclusive sides: consumer values for `RangeSet.map`, XC-010), `foldEffect`/`unfoldEffect`, fold commands and keymap, `codeFolding` config, placeholder widget, `foldGutter` (model in core, drawing in surface).
+- **Bracket matching.** `matchBrackets` with and without a tree, `bracketMatching` config, `bracketMatchingHandle`; it iterates the document with `iterRange` (XC-004).
+- **Language data.** `languageDataProp`, `Language.data`, and how `EditorState.languageDataAt` reaches them (XC-027): commands' comment toggling and the categorizer depend on it.
+- **Tests outside the package.** Behaviors without a test in `CodeMirror6/language/test/` are common. Link them to `lang-*` or `commands` tests where those exist; otherwise they get derived tests from fixtures.
+- **Grammar-dependent values.** Every fixture and test value that depends on a Lezer grammar is marked `NEEDS GRAMMAR` with the grammar and version; the conformance audit compares them against the grammar chosen in D3 and lists every changed value.
+
+## Inputs from earlier audits
+
+From `ferrum/docs/parity/_cross-crate.md`, capabilities language needs from state: XC-004 (`Text` iterators), XC-008 (`iterChangedRanges`), XC-010 (side values in `RangeSet.map`), XC-018 (`RangeSet.update`), XC-020, XC-023, XC-024 (`Facet.from`, `provide`, `StateField.init`, `appendConfig`, dependency-driven computed facets), XC-027 (`languageDataAt`), XC-028 (`isUserEvent`), XC-033 (transaction filters with `sequential`). Check each against the rebuilt `ferrum-state` (A5). From the view audit: the decoration, view plugin and widget APIs that folding, bracket matching and highlighting use.
 
 ## Calibration notes (not a work list; may contain errors)
 
-- `ParseContext::work` and `ParseContext::changes` in `ferrum/crates/ferrum-language/src/tree.rs:171-186` (`work`, `changes`) ignore their arguments.
-- `SyntaxNode::resolve` ignores `assoc` (`ferrum/crates/ferrum-language/src/tree.rs:54`).
-- No tree-sitter dependency in `Cargo.toml`.
-- `javascript.rs` defines a toy language used by tests; cm6 tests that use `@lezer/javascript` cannot be equivalent with it.
-- `ferrum/crates/ferrum-language/src/README.md:37` lists `match_brackets`; no function with that name was found.
+- `CodeMirror6/language/test/` has only 13 cases in its own package (`ferrum-foundation.md` §3); most of the behavior is tested in `lang-*` and `commands`.
+- `StreamLanguage` is used heavily by `CodeMirror6/legacy-modes/`; whether Ferrum keeps it is part of D3.

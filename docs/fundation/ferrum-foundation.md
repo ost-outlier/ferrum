@@ -7,9 +7,9 @@ Precedence when documents disagree:
 1. `rules.md`: binding working rules.
 2. This document: purpose, scope and architecture.
 3. Approved audit outputs in `ferrum/docs/parity/` and approved decisions in `ferrum/docs/parity/decisions.md`: facts about the code and decisions already taken.
-4. `ferrum/README.md`, crate READMEs, doc comments, `ferrum_strategic_architecture_vision.md`: **claims**, not facts. The vision document in particular is aspirational and contains exaggerations and errors (listed in section 9).
+4. `ferrum/README.md`, crate READMEs, doc comments, `/workspace/ferrum_strategic_architecture_vision.md` (outside the repository): **claims**, not facts. The vision document in particular is aspirational and contains exaggerations and errors (listed in section 9).
 
-Anything marked *preliminary* below comes from a quick look at the code, not from an audit. The audit decides.
+Anything marked *preliminary* below comes from a quick look, not from an audit. The audits decide. The workflow is: specification audit (`1-parity-audit.md` and the scope sheets), implementation (`2-parity-implementation.md`; for `ferrum-state`, `2a-implementation-state.md`), conformance audit (`3-conformance-audit.md`).
 
 ---
 
@@ -165,19 +165,11 @@ cm6 never lays out text; the browser does. In Ferrum:
 
 ---
 
-## 5. Current state of the code (preliminary)
+## 5. State of the code and of the audits
 
-All four crates compile and their own tests pass (state 177, commands 142, view 31, language 15 at the time of writing). Passing tests say little here: the tests were written by the same process that wrote the code, several were renamed or weakened relative to cm6, and many cm6 items have no test at all. Observed in a quick look (to be confirmed or refuted by the audit):
-
-- **Dependencies.** `ferrum-commands` depends on `state` and `language` but not `view`, so view-dependent cm6 commands were implemented as state-only approximations. `ferrum-language` depends on `view`, which matches cm6. The root README presents a different layering (commands below language and view).
-- **`ferrum-state`.**
-  - Positions are Unicode code points (`char` indices); cm6 uses UTF-16 code units (D1).
-  - `ropey` is used with default features, which include `unicode_lines`: U+2028, U+2029, U+0085, VT, FF and a lone CR are treated as line breaks. cm6 splits lines on `\r\n?|\n` by default (or on the `lineSeparator` facet) and stores lines without separators. `Text` stores separators raw (D2).
-  - A grep found no counterpart for `changeFilter`, `transactionExtender`, `languageData`/`languageDataAt`, `phrases`, `toJSON`/`fromJSON`, `wordAt`, `sliceDoc`, `lineBreak`, `isUserEvent`, `appendConfig`, `StateEffectType`. Grep is not proof; the audit must check.
-- **`ferrum-view`.** `heightmap.rs` and `viewstate.rs` look like serious ports (heightmap tests follow `test-heightmap.ts`). `EditorView` is a thin holder (`new`, `state`, `viewport`, `dispatch`, `visible_decorations`, `render_lines`): no view plugins in cm6's sense, no motion API, no keymap, no layout contract. `Decoration::mark` takes a `&'static str` tag (a stand-in for a CSS class).
-- **`ferrum-language`.** Essentially a stub: a hand-rolled `SyntaxNode` tree, `ParseContext::work` and `changes` ignore their inputs, a toy `javascript.rs`, no tree-sitter dependency, no bracket matching despite the crate README listing `match_brackets`.
-- **`ferrum-commands`.** Only `StateCommand` exists; `KEYMAP`, `dispatch_key` and `insert_text` live here although cm6 has keymaps in `view`; `default_keymap` binds Tab, which cm6 keeps in the separate `indentWithTab`; read-only checks, user events and `state.lineBreak` are missing in many commands; several commands materialize the whole document as a `String`. Tests in cm6 that load `@lezer/javascript` or `lang-html` can only be approximated until `ferrum-language` has real grammars.
-- **Facade and docs.** The README's quickstart uses APIs that do not exist (`set_decorations`, `Decoration::new`) and a `language` feature the facade does not declare. The workspace is licensed `MIT` only while the README promises MIT/Apache-2.0 and no license files exist.
+- **`ferrum-state`** was audited against `@codemirror/state` 6.7.6 on 2026-10-21 (`ferrum/docs/parity/state/`, at commit `fb99ca1`). Of 948 cm6 behaviors, 22% were implemented and tested, 14% implemented but untested, 25% different and 33% missing; 68 of 172 cm6 test cases had an equivalent Ferrum test. The facet/configuration model and the transaction pipeline differ from cm6 in structure; `ChangeSet` and `changeByRange` matched cm6 on every ASCII oracle case. Details: `ferrum/docs/parity/state/progress.md`, `ferrum/docs/parity/state/api-matrix.md`, `ferrum/docs/parity/decisions-evidence.md`, `ferrum/docs/parity/_cross-crate.md`.
+- **`ferrum-view`, `ferrum-language`, `ferrum-commands`** have not been audited. The preliminary observations that preceded the audits are in git history (this section at commit `ed70610`); the ones still useful are carried as calibration notes into `1b-scope-view.md` (keymap items placed in commands) and `1d-scope-commands.md` (the existing commands code).
+- **Facade and docs.** The README's claims were audited for state only (`ferrum/docs/parity/state/claims.md`); documentation is rewritten per crate after its conformance report is approved. Licensing (MIT in the manifests, MIT/Apache-2.0 in the README, no license files, no cm6 notice) is decision D9.
 
 ---
 
@@ -211,21 +203,20 @@ For ASCII-only tests all three give identical numbers, so the choice mostly affe
 
 ---
 
-## 7. Fix or start over?
+## 7. Approach (decided by the maintainer after the state audit, 2026-10-21)
 
-Neither extreme. **Recommendation: rebuild in place, crate by crate, in dependency order, with the existing code treated as a quarry and not as a base.** Concretely:
+Rebuild in place, crate by crate, in dependency order. The existing code is not a base: each crate is specified from cm6, implemented from the specification, and checked by a conformance audit. The one exception is `ferrum-commands`, whose existing code is evaluated item by item as a quarry. Record this in `ferrum/docs/parity/decisions.md` together with D1–D10.
 
-- Keep the repository, the workspace layout and the history.
-- Take decisions D1–D10 first. D1 and D2 alone touch almost every position computation in all four crates, so "fixing" before deciding them is wasted work.
-- Run the audit (`1-parity-audit.md`). Its per-status counts decide, per crate, between *repair* (change the existing code item by item) and *rebuild* (write the crate again from cm6 and the approved behavior lists, copying existing pieces only after they are verified). Suggested rule: rebuild when most items are `MISSING`/`DEVIATION`, or when an approved decision changes the crate's core types.
-- Preliminary expectation:
-  - `ferrum-state`: **repair**, possibly invasive because of D1/D2. Closest to cm6, most tests.
-  - `ferrum-view`: **rebuild the API** (`EditorView`, view plugins, layout contract, keymap, motion), **keep** heightmap/viewstate if the audit confirms them.
-  - `ferrum-language`: **rebuild** after D3. Little to salvage.
-  - `ferrum-commands`: **re-implement** against the new view/language contracts. Reuse test ports the audit marks `EQUIVALENT`, and `history`/`comment` code only if the audit finds it correct.
-  - `ferrum-view-gpui`: **freeze** until the foundation is stable, then rewrite as a thin adapter that implements the layout and input contracts.
+| Crate | Specification | Implementation | Existing code |
+|---|---|---|---|
+| `ferrum-state` | the cm6 side of the state audit, completed per `2a-implementation-state.md` §2 | `2a-implementation-state.md` | not a base; may be consulted only for the algorithms the oracle confirmed (`2a` §4) |
+| `ferrum-view` | `1-parity-audit.md` + `1b-scope-view.md` | `2-parity-implementation.md` | not read, except the view-owned keymap items in `ferrum-commands` (`1b` quarry) |
+| `ferrum-language` | `1-parity-audit.md` + `1c-scope-language.md` | `2-parity-implementation.md` | not read |
+| `ferrum-commands` | `1d-scope-commands.md` (specification, quarry, feedback) | `2-parity-implementation.md` | quarry: `REUSE`/`ADAPT` code and `KEEP`/`FIX` tests may be kept |
+| `ferrum-view-gpui` | none yet | after the foundation | frozen; later a thin adapter implementing the layout and input contracts |
+| `ferrum` (facade) | none | re-exports only (`rules.md` §2.4) | updated when the crates it re-exports change |
 
-Why not delete everything: the existing test ports are a useful starting inventory, `heightmap` and `rangeset` appear to be careful ports, and the audit is far cheaper than a second blind port. Why not simply patch: the dependency graph, the command model and the syntax layer are structurally wrong, so patching would preserve wrong shapes. The audit's numbers should settle each case; do not keep code because of the effort already spent on it.
+Take the decisions first: D1 and D2 touch almost every position computation, so implementing before deciding them is wasted work. Why the existing code is not kept: the state audit showed that its tests named after cm6 cases often asserted less or something else, and that the facet model, the transaction pipeline and the selection model were structurally different from cm6; patching would preserve wrong shapes.
 
 ---
 

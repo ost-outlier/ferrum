@@ -1,6 +1,6 @@
 # Ferrum development rules
 
-These rules are binding for all work on Ferrum, by humans and AI agents. They say *how* to work. *What* Ferrum is and why is in `ferrum-foundation.md`; read it first. The audit and implementation briefs (`1-parity-audit.md`, `2-parity-implementation.md`) add phase-specific rules on top of these.
+These rules are binding for all work on Ferrum, by humans and AI agents. They say *how* to work. *What* Ferrum is and why is in `ferrum-foundation.md`; read it first. The phase briefs add phase-specific rules on top of these: specification audit (`1-parity-audit.md` with the scope sheets `1a`–`1d`), implementation (`2-parity-implementation.md`; `2a-implementation-state.md` for `ferrum-state`), conformance audit (`3-conformance-audit.md`).
 
 Local mirrors: cm6 in `/workspace/CodeMirror6/` (upstream: `https://code.haverbeke.berlin/codemirror`), Ferrum in `/workspace/ferrum/`, Zed in `/workspace/zed/`, markdown-oxide in `/workspace/markdown-oxide/`.
 

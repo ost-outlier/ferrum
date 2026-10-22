@@ -2,7 +2,7 @@
 
 This brief checks a crate implemented with `2-parity-implementation.md` against its approved specification (`1-parity-audit.md`, or `1d-scope-commands.md` for commands) and answers one question: **does the crate implement the specification with 100% precision?** If not, it lists exactly where not, with reproductions.
 
-It applies to every foundation and feature crate, including `ferrum-state` once rebuilt (its specification is the cm6 side of `ferrum/docs/parity/state/`, see `1-parity-audit.md` §16).
+It applies to every foundation and feature crate, including `ferrum-state` once rebuilt (its specification is the cm6 side of `ferrum/docs/parity/state/`, completed per `2a-implementation-state.md` §2).
 
 This phase is **audit only**: findings are reported, not fixed. The implementer fixes them and the failing gates are re-run.
 

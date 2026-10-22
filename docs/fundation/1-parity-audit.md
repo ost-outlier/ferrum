@@ -287,7 +287,7 @@ Deliver to the human, then stop:
 
 ## 16. Retrofitting `ferrum-state`
 
-`ferrum/docs/parity/state/` was produced by the previous version of this brief. Its cm6 side is a valid specification: `raw/a1-cm6-exports.md`, `dispositions.md`, the cm6 columns of `behaviors.md` (behavior text, cm6 `file:line`, cm6 tests), the cm6 columns of `tests-side-by-side.md` Table 1, `oracle/cm6-probes/`, `decisions-evidence.md` and `_cross-crate.md`. Its Ferrum side (statuses, Ferrum tests, Ferrum-only and placement lists, claims) describes code that will not be kept. Before rebuilding state, run P2 steps 3–4 (fixtures, cost class), section 8 (generators against the checklist) and section 9 (hazards) on the existing behavior list; then implement and run `3-conformance-audit.md`.
+`ferrum/docs/parity/state/` was produced by the previous version of this brief. Its cm6 side is a valid specification: `raw/a1-cm6-exports.md`, `dispositions.md`, the cm6 columns of `behaviors.md` (behavior text, cm6 `file:line`, cm6 tests), the cm6 columns of `tests-side-by-side.md` Table 1, `oracle/cm6-probes/`, `decisions-evidence.md` and `_cross-crate.md`. Its Ferrum side (statuses, Ferrum tests, Ferrum-only and placement lists, claims) describes code that will not be kept. Before rebuilding state, its specification is completed (fixtures, cost classes, generators against the checklist, hazards, implementation sketch): the steps are in `2a-implementation-state.md` §2. Then implement with `2a` and run `3-conformance-audit.md`.
 
 ---
 

@@ -1,5 +1,7 @@
 # Audit scope: `ferrum-state` vs `@codemirror/state`
 
+> **Status: historical.** This sheet drove the state audit of 2026-10-21 (`ferrum/docs/parity/state/`), under the previous version of `1-parity-audit.md` (`git -C /workspace/ferrum show f63225f:docs/fundation/1-parity-audit.md`). Its cm6 content (scope, chunks, special attention) remains valid and is used by `2a-implementation-state.md` §2 to complete the specification. Its Ferrum column and calibration notes describe the old crate (commit `ed70610`), which is not kept: do not use them as a work list. For the rebuild of `ferrum-state`, start from `2a-implementation-state.md`. <!-- refs:ignore: git path syntax -->
+
 Use with `1-parity-audit.md`. Audit order: **1 of 4** (no Ferrum dependencies).
 
 ## Scope
