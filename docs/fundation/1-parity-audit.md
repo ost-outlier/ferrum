@@ -6,13 +6,13 @@ The audit reads **cm6 only**, plus the public API of the Ferrum crates below the
 
 This phase is **audit only**: no Ferrum code, no Ferrum tests.
 
-Per crate, use it with the crate's scope sheet (`1b-scope-view.md`, `1c-scope-language.md`, or a new one). The view and language sheets were written for the previous version of this brief: ignore their Ferrum columns, their calibration notes about existing Ferrum code and every claims-audit instruction; everything they say about cm6 still applies.
+Per crate, use it with the crate's scope sheet (`1b-scope-view.md`, `1c-scope-language.md`, or a new one). `1b-scope-view.md` follows this version. `1c-scope-language.md` was written for the previous version: ignore its Ferrum column, its calibration notes about existing Ferrum code and every claims-audit instruction; everything it says about cm6 still applies.
 
 ---
 
 ## 0. What the `ferrum-state` audit taught (why this brief looks like this)
 
-The first audit (`docs/parity/state/`) compared cm6 with existing Ferrum code. Measured results that shaped this version:
+The first audit (`ferrum/docs/parity/state/`) compared cm6 with existing Ferrum code. Measured results that shaped this version:
 
 | Observation | Consequence here |
 |---|---|
@@ -28,14 +28,14 @@ The first audit (`docs/parity/state/`) compared cm6 with existing Ferrum code. M
 | All seven parallel subagents hit an account usage limit at the same time. Work survived only because it was in files. | Subagents append each finished item to their raw file; at most 4 run in parallel (section 11). |
 | Every subagent read ~25k tokens of instructions. | One condensed subagent card per crate (section 11). |
 | The 10% verification sample found 5 real errors and the extension sample came back clean. | Verification is kept, and extended with mechanical checks (section 12). |
-| References were written for the session that produced them, not for the AI that reads them later: paths relative to three different, unstated roots (`state/src/…` meant `CodeMirror6/state/src/…`, `crates/…` meant `ferrum/crates/…`, `rules.md` existed in two places); evidence ids such as `C1 R9` or `P7` that only resolve if one knows which raw file and section; scratch paths under `/tmp` that disappear after the session; line numbers without the symbol or the commit they refer to. | One path root, qualified evidence ids, a resolution index, no scratch paths, `file:line` plus symbol plus version; checked mechanically (section 11.1). |
+| References were written for the session that produced them, not for the AI that reads them later: paths relative to three different, unstated roots (`CodeMirror6/state/src/…` meant `CodeMirror6/state/src/…`, `crates/…` meant `ferrum/crates/…`, `rules.md` existed in two places); evidence ids such as `C1 R9` or `P7` that only resolve if one knows which raw file and section; scratch paths under `/tmp` that disappear after the session; line numbers without the symbol or the commit they refer to. | One path root, qualified evidence ids, a resolution index, no scratch paths, `file:line` plus symbol plus version; checked mechanically (section 11.1). | <!-- refs:ignore -->
 
 ---
 
 ## 1. Preconditions and inputs
 
 - **Decisions.** D1 (position unit) and D2 (line breaks) must be recorded in `ferrum/docs/parity/decisions.md` before phase 2: almost every behavior depends on them. Crate-specific decisions (D3 for language, D4/D7/D8 for view) may still be open: the audit collects their evidence and states each dependent behavior in a decision-neutral way.
-- **Lower crates.** For each Ferrum crate the audited one depends on: its conformance report (`docs/parity/<crate>/conformance.md`) if it is implemented, otherwise its approved specification (`inventory`, `dispositions`, `behaviors`). These define which capabilities exist.
+- **Lower crates.** For each Ferrum crate the audited one depends on: its conformance report (`ferrum/docs/parity/<crate>/conformance.md`) if it is implemented, otherwise its approved specification (`inventory`, `dispositions`, `behaviors`). These define which capabilities exist.
 - **Read before starting:** `ferrum-foundation.md`, `rules.md`, this brief, the scope sheet, `decisions.md`, `_cross-crate.md`, the crate's `progress.md` if it exists. Subagents read only the subagent card (section 11).
 
 Paths: cm6 under `/workspace/CodeMirror6/`, Ferrum under `/workspace/ferrum/`, outputs in `/workspace/ferrum/docs/parity/<crate>/`.
@@ -47,7 +47,7 @@ Paths: cm6 under `/workspace/CodeMirror6/`, Ferrum under `/workspace/ferrum/`, o
 1. **cm6's code is the specification**; its README and docs are secondary. When they disagree, the code wins.
 2. **Purpose filter.** Ferrum is a native, headless engine (`ferrum-foundation.md` §1–2). Do not make something `CORE` only because cm6 has it, and do not `DROP` it only because cm6 implements it with the DOM: ask what it does for a native editor.
 3. **Missing DOM is not an excuse.** Every `DROP` needs an item-specific reason. If the *behavior* matters natively (input semantics, composition, selection drawing, scrolling, measuring), it is `CONTRACT` or `SURFACE`.
-4. **Specify, do not design.** For `CONTRACT` items, state the question asked and what the logic does with the answer; do not write traits.
+4. **Specify first, then sketch.** For `CONTRACT` items, state the question asked and what the logic does with the answer. Rust shapes (types, traits, modules) appear only in the implementation sketch (section 17), marked as proposals; the specification itself stays decision-neutral.
 5. **Do not decide foundational questions**, approve your own dispositions, or invent justifications. Unresolvable points go to `human-decisions.md` with options.
 6. **Do not read the existing Ferrum crate being audited**, its tests or its docs. Read lower Ferrum crates only through their public API and conformance report.
 
@@ -55,7 +55,7 @@ Paths: cm6 under `/workspace/CodeMirror6/`, Ferrum under `/workspace/ferrum/`, o
 
 ## 3. Deliverables
 
-Per crate, in `docs/parity/<crate>/` (English):
+Per crate, in `ferrum/docs/parity/<crate>/` (English):
 
 | File | Content |
 |---|---|
@@ -68,10 +68,11 @@ Per crate, in `docs/parity/<crate>/` (English):
 | `tests.md` | T1: every cm6 test case with classification and port plan; helper specifications; derived-test list |
 | `fixtures/<chunk>.jsonl` + `oracle/` | golden values produced by cm6, and the cm6-side generators with seeds |
 | `hazards.md` | JS→Rust hazards per item (section 9) |
+| `implementation-plan.md` | sketch of the Rust implementation, obvious decisions proposed for bulk approval, native opportunities (section 17) |
 | `human-decisions.md` | everything left to a human, with options |
 | `verification.md` | section 12 |
 
-Workspace-wide: `docs/parity/_cross-crate.md` (A5 register) and `docs/parity/decisions-evidence.md`.
+Workspace-wide: `ferrum/docs/parity/_cross-crate.md` (A5 register) and `ferrum/docs/parity/decisions-evidence.md`.
 
 ---
 
@@ -85,8 +86,9 @@ Workspace-wide: `docs/parity/_cross-crate.md` (A5 register) and `docs/parity/dec
 | P2 Behaviors | behaviors, cost class, consumer values, golden fixtures; contract questions | `behaviors.md`, `contracts.md`, `fixtures/` |
 | P3 Tests | T1 catalog, classification, port plan, helper specs, derived-test list | `tests.md` |
 | P4 Cross-cutting | hazards, cross-crate capability check, decision evidence | `hazards.md`, `_cross-crate.md`, `decisions-evidence.md` |
+| P4b Implementation sketch | module map, Rust shapes, obvious decisions, native opportunities (section 17) | `implementation-plan.md` |
 | P5 Verification | fresh-context check (section 12) | `verification.md` |
-| **Gate 2** | human approves the specification; implementation may start | |
+| **Gate 2** | human approves the specification, the implementation sketch and, in one decision, the list of obvious decisions; implementation may start | |
 
 P2 and P3 cover only items whose approved disposition is `CORE`, `CONTRACT`, `SURFACE` (the core-owned part) or `ELSEWHERE` pointing to this crate, and that are not `DEFER`. `DEFER` and `DROP` items stop after P1.
 
@@ -96,7 +98,7 @@ P2 and P3 cover only items whose approved disposition is `CORE`, `CONTRACT`, `SU
 
 **A1.** Derive the public API from every `export` reachable from the package's `src/index.ts`, not from the README. One row per: top-level export (class, interface, type, enum, function, const), public instance and static member (methods, getters, fields, constructor parameter properties), enum member, and field of every config object type accepted by an exported function (for example `FacetConfig`, `StateFieldSpec`, `RangeSetUpdate`; these fields carry behavior and were a main source of `MISSING` items in the state audit). Exclude `private` and `@internal` members, but read them as helpers. Report every discrepancy with the package README symbol list.
 
-Generate the list mechanically with the TypeScript compiler API (`docs/parity/state/oracle/tools/cm6-exports.cjs`; adapt its list of config object types per package) and count test cases the same way (`cm6-tests.cjs`). Declare totals before any other work.
+Generate the list mechanically with the TypeScript compiler API (`ferrum/docs/parity/state/oracle/tools/cm6-exports.cjs`; adapt its list of config object types per package) and count test cases the same way (`cm6-tests.cjs`). Declare totals before any other work.
 
 **Dispositions** (one per row and per source file; proposals until Gate 1):
 
@@ -139,14 +141,14 @@ A fixture is one cm6 run: `{id, item, behaviors, input, output}` in `fixtures/<c
 
 ### 6.3 Consumer values
 
-For every item another cm6 package uses, grep those packages for the constants and value ranges they pass (for example decoration sides ±1e8…±6e8 in `view/src/decoration.ts`, `Prec` levels, large positions, `minPointSize`) and include them in the behaviors and fixtures. Record them as `consumer values` in the item's section.
+For every item another cm6 package uses, grep those packages for the constants and value ranges they pass (for example decoration sides ±1e8…±6e8 in `CodeMirror6/view/src/decoration.ts`, `Prec` levels, large positions, `minPointSize`) and include them in the behaviors and fixtures. Record them as `consumer values` in the item's section.
 
 ---
 
 ## 7. Harness
 
-- cm6 side: a scratch directory with the package sources copied in and dependencies installed with npm (`@marijn/find-cluster-break`, `@lezer/*`, grammars such as `@lezer/javascript`), run with `tsx`. The state audit's setup is described in `docs/parity/state/oracle.md`; reuse its scripts.
-- Keep generators and probe scripts in `docs/parity/<crate>/oracle/` (sources only; data is reproducible from seeds; large outputs stay out of the repository).
+- cm6 side: a scratch directory with the package sources copied in and dependencies installed with npm (`@marijn/find-cluster-break`, `@lezer/*`, grammars such as `@lezer/javascript`), run with `tsx`. The state audit's setup is described in `ferrum/docs/parity/state/oracle.md`; reuse its scripts.
+- Keep generators and probe scripts in `ferrum/docs/parity/<crate>/oracle/` (sources only; data is reproducible from seeds; large outputs stay out of the repository).
 - No Ferrum side in this phase. The conformance audit writes the Ferrum replayers.
 
 ---
@@ -195,7 +197,7 @@ For each item, list which of these its cm6 implementation relies on, with `file:
 
 Port notes: helpers used, values that change under the D1/D2 decisions (with their new values computed from the fixture text), loops and randomness to reproduce.
 
-**Helper specifications (T5).** For every cm6 test helper (for example `commands/test/state.ts` `mkState`: `|` for a cursor, `<…>` for a range, `allowMultipleSelections` on), its exact parsing and assertion rules, so the Ferrum helper can mirror it.
+**Helper specifications (T5).** For every cm6 test helper (for example `CodeMirror6/commands/test/state.ts` `mkState`: `|` for a cursor, `<…>` for a range, `allowMultipleSelections` on), its exact parsing and assertion rules, so the Ferrum helper can mirror it.
 
 **Derived tests (T7).** Every behavior without a cm6 test gets a derived-test specification: the behavior id, input and expected value taken from a golden fixture, marked for `// derived from cm6 source: <file:line>`.
 
@@ -208,7 +210,7 @@ Port notes: helpers used, values that change under the D1/D2 decisions (with the
 ## 11. Orchestration
 
 - **Main session** keeps everything that needs the whole picture: dispositions, scope, contract grouping, cross-crate entries, decision evidence, rendering, the gate summary. **Subagents** produce facts for one chunk (a source file or an export range of a large file; a test file).
-- **Subagent card.** The main session writes `docs/parity/<crate>/subagent-card.md`: the rules of sections 2, 6, 8 and 9 condensed, the JSONL schemas, harness paths, and the output contract. A subagent reads the card, the scope sheet and its sources; not the whole document set.
+- **Subagent card.** The main session writes `ferrum/docs/parity/<crate>/subagent-card.md`: the rules of sections 2, 6, 8 and 9 condensed, the JSONL schemas, harness paths, and the output contract. A subagent reads the card, the scope sheet and its sources; not the whole document set.
 - **Chunk size and concurrency.** About 40–80 inventory rows or ≤1,000 cm6 source lines per chunk; at most 4 subagents in parallel. Record each chunk's token cost in `progress.md` to calibrate the next crate (state reference: 240k–320k tokens per chunk of 30–77 cm6 items, including Ferrum work that this brief removes).
 - **Incremental output.** A subagent appends each finished item to its JSONL file immediately and keeps a `done/remaining` line in `raw/<chunk>.progress`. An interrupted subagent resumes from that line.
 - **Fixed schemas** (one JSON object per line; arrays where marked):
@@ -217,7 +219,7 @@ Port notes: helpers used, values that change under the D1/D2 decisions (with the
   - `tests.jsonl`: `id, file, line, describe, name, scenario, expected, behaviors[], class, class_reason, port_notes`
   - `fixtures/<chunk>.jsonl`: `id, item_id, behaviors[], input, output, encoding`
   - `xc.jsonl` (cross-crate facts): `capability, cm6, needed_by, searched, exists`
-  The main session renders Markdown from these with a script kept in `docs/parity/tools/`.
+  The main session renders Markdown from these with a script kept in `ferrum/docs/parity/tools/`.
 - **No boilerplate.** A reason shared by many rows is written once as a group entry (for example `group: TS-PHANTOM`) and referenced by id; it must be true of every member.
 - Every subagent ends by listing unfinished ids. An unlisted gap counts as a falsified result.
 
@@ -225,10 +227,10 @@ Port notes: helpers used, values that change under the D1/D2 decisions (with the
 
 Every deliverable is read later by an AI (implementer, conformance auditor, next audit) that has none of this session's context. A reference is valid only if that reader can open the target with the reference alone.
 
-1. **One root.** Every path is relative to `/workspace/`: `CodeMirror6/state/src/text.ts:38`, `ferrum/crates/ferrum-view/src/lib.rs:12`, `ferrum/docs/parity/view/behaviors.md`, `ferrum/docs/fundation/rules.md`. No path relative to an unstated directory, no bare file names (`rules.md`), no `./`.
-2. **No scratch paths.** Nothing under `/tmp`, a scratchpad or a home directory appears in a deliverable. Scripts and data a reader needs are copied into `ferrum/docs/parity/<crate>/oracle/` first and referenced there.
+1. **One root.** Every path is relative to `/workspace/`: `CodeMirror6/state/src/text.ts:38`, `ferrum/crates/ferrum-view/src/lib.rs:12`, `ferrum/docs/parity/view/behaviors.md`, `ferrum/docs/fundation/rules.md`. No path relative to an unstated directory and no `./`. One exception: instruction documents may be named by file name alone (`rules.md`), because they all live in `ferrum/docs/fundation/` (stated in `ferrum/docs/parity/README.md`).
+2. **No scratch paths.** Nothing under `/tmp`, a scratchpad or a home directory appears in a deliverable. Scripts and data a reader needs are copied into `ferrum/docs/parity/<crate>/oracle/` first and referenced there. <!-- refs:ignore -->
 3. **Code references carry the symbol and the version.** Write `` `CodeMirror6/view/src/cursor.ts:102` (`byGroup`) ``. Each deliverable states once, at the top, the cm6 package version and the Ferrum commit its line numbers refer to, so a reader can recover a drifted line by symbol.
-4. **Qualified evidence ids.** An id is written so that it names its file: `view/raw/C3-fixtures.jsonl#F0042`, `view/behaviors.md#view.moveVertically.B3`, `_cross-crate.md#XC-041`. Each id is defined in exactly one place. Short forms (`R9`, `C1 P7`) are allowed only inside the file that defines them.
+4. **Qualified evidence ids.** An id is written so that it names its file: `ferrum/docs/parity/view/fixtures/C3.jsonl#F0042`, `ferrum/docs/parity/view/behaviors.md#view.moveVertically.B3`, `ferrum/docs/parity/_cross-crate.md#XC-041`. Each id is defined in exactly one place. Short forms (`R9`, `F0042`) are allowed inside the file that defines them, and in a row whose evidence column names that file.
 5. **Resolution index.** `ferrum/docs/parity/README.md` lists every id scheme (inventory rows, behaviors, tests, fixtures, register entries, decisions, human decisions), the file that defines it and how to resolve it. A new scheme is added there before it is used.
 6. **Reading header.** Every deliverable starts with three lines: what the file is, the versions (3), the id schemes it uses (5).
 7. **Mechanical check.** Verification (section 12) runs a reference checker: every path exists, every line number is within the file and the cited symbol appears within a few lines of it, every qualified id resolves, no scratch path remains.
@@ -264,6 +266,7 @@ Deliver to the human, then stop:
 - open cross-crate entries, in both directions;
 - decision evidence added;
 - `human-decisions.md`;
+- the implementation sketch: module map, the list of obvious decisions for bulk approval, the native opportunities with their behavior impact;
 - verification result;
 - confirmation that every source file and test file listed in the scope sheet is covered.
 
@@ -274,7 +277,7 @@ Deliver to the human, then stop:
 - read, test or describe the existing Ferrum code of the crate being audited
 - audit READMEs, doc comments, commit messages or other claims
 - write Ferrum code or tests
-- design traits for contracts (state the questions)
+- present a sketch as decided, or let a Rust shape change a specified behavior
 - hand-write golden values
 - skip a source file or a test file because it is large or a `webtest`
 - port DOM machinery into the specification because cm6 has it, or drop native-relevant behavior because cm6 implements it with the DOM
@@ -284,4 +287,56 @@ Deliver to the human, then stop:
 
 ## 16. Retrofitting `ferrum-state`
 
-`docs/parity/state/` was produced by the previous version of this brief. Its cm6 side is a valid specification: `raw/a1-cm6-exports.md`, `dispositions.md`, the cm6 columns of `behaviors.md` (behavior text, cm6 `file:line`, cm6 tests), the cm6 columns of `tests-side-by-side.md` Table 1, `oracle/cm6-probes/`, `decisions-evidence.md` and `_cross-crate.md`. Its Ferrum side (statuses, Ferrum tests, Ferrum-only and placement lists, claims) describes code that will not be kept. Before rebuilding state, run P2 steps 3–4 (fixtures, cost class), section 8 (generators against the checklist) and section 9 (hazards) on the existing behavior list; then implement and run `3-conformance-audit.md`.
+`ferrum/docs/parity/state/` was produced by the previous version of this brief. Its cm6 side is a valid specification: `raw/a1-cm6-exports.md`, `dispositions.md`, the cm6 columns of `behaviors.md` (behavior text, cm6 `file:line`, cm6 tests), the cm6 columns of `tests-side-by-side.md` Table 1, `oracle/cm6-probes/`, `decisions-evidence.md` and `_cross-crate.md`. Its Ferrum side (statuses, Ferrum tests, Ferrum-only and placement lists, claims) describes code that will not be kept. Before rebuilding state, run P2 steps 3–4 (fixtures, cost class), section 8 (generators against the checklist) and section 9 (hazards) on the existing behavior list; then implement and run `3-conformance-audit.md`.
+
+---
+
+## 17. Implementation sketch (P4b)
+
+The crate is new, so the audit ends with a first idea of how it will be built in Rust. It is a sketch for the implementer and the human, not a design approval: contract traits are still approved separately (`2-parity-implementation.md` §2.3), and nothing in the sketch may change a behavior of `behaviors.md`. Write it in the main session, after P2–P4, from the specification and the hazards.
+
+### 17.1 Shape of the crate
+
+- **Module map.** One Rust module per cm6 source file in scope (`rules.md` §6.5: `src/module.rs`), with the public items of each and what stays `pub(crate)`. cm6 `@internal` and non-exported mechanisms stay private by default (the state audit found 55 such items exposed publicly, several of them able to break invariants from outside).
+- **Core types and invariants first**: which types everything else uses, their invariants, and how they are kept (constructors, private fields).
+- **Rust shapes for cm6 idioms**, per item group, chosen from the hazards of section 9:
+
+| cm6 idiom | Usual Rust shape | Watch for |
+|---|---|---|
+| object literal with optional fields (`{from, to?, insert?}`) | struct with `Default`, or builder | defaults must equal cm6's |
+| union-typed parameter (`ChangeSpec`, `Extension`) | enum, `impl Into<…>` | every union member stays expressible (nested arrays, sets inside lists) |
+| class hierarchy, `instanceof`, duck typing | enum for closed sets, trait for open sets | open construction must not break invariants |
+| identity (`===`, `indexOf`, `Map` keys) | `Arc` + `Arc::ptr_eq`, or ids allocated per configuration | value equality is not identity (the state main-index bug) |
+| lazily cached getter (`Transaction.state`) | `OnceLock`/`OnceCell` | compute once; re-entrant access as in cm6 |
+| exceptions | `Result`, or a documented panic (`rules.md` §6.4) | the error contract decided per precondition |
+| JS `number` | integer width chosen from consumer values; `f64` for geometry | narrow types truncate (`i8` sides) |
+| callbacks with early stop (`between(…, f)` returning `false`) | iterator, or `FnMut -> ControlFlow` | keep the stop semantics |
+| module-level counters, `Date.now()` | per-instance ids, injected clock | determinism in tests (D6) |
+| strings and UTF-16 offsets | rope slices, positions in the D1 unit | no whole-document `String` (`rules.md` §6.3) |
+
+- **Ownership and threading** per D6: what is shared (`Arc`), what is cloned, what needs `Send + Sync`, where structural sharing is required (for example `RangeSet` chunks, which `compare` relies on).
+- **Error contract**: per precondition, panic or `Result`, aligned with the answers in `human-decisions.md`.
+- **Dependencies**: candidate crates with license and reason (rules.md §5.5); foundation crates stay headless (rules.md §2.2).
+- **Order of implementation**: types and invariants, then items in cm6 source order; contract-first items get trait and fake first.
+- **Test plan**: port order, the fake implementations of `contracts.md`, the Ferrum fixture replayer and oracle drivers that the conformance audit will run (`3-conformance-audit.md` G4, G5).
+
+### 17.2 Obvious decisions
+
+Decisions with one reasonable answer, which the state audit spent many rows on (30 of its `FERRUM-ONLY` rows were builders, `Debug`, `Default`, `From` and `is_empty`). List them as `OBVIOUS-<n>: <decision> — <reason>`, and the human approves the whole list with one decision at Gate 2. Examples:
+
+- names are the snake_case of cm6 names; methods stay on the type that has them in cm6;
+- `Debug` on every public type; `Default` where cm6 has a default value (and returns exactly that value); `is_empty` next to `len` (`clippy::len_without_is_empty`); `Default` for types with `new()` (`clippy::new_without_default`);
+- builders or `Default` structs stand in for object literals; `From`/`Into` stand in for implicit union conversions;
+- `Iterator`/`IntoIterator` where cm6 iterates with a callback and the stop semantics allow it;
+- cm6 `@internal` items are `pub(crate)`.
+
+An item that is not obvious (two reasonable answers, or an observable difference) goes to `human-decisions.md` instead.
+
+### 17.3 Native opportunities
+
+Places where a native Rust engine could do better than cm6, which often works around single-threaded JavaScript, the garbage collector or the DOM. For each: what cm6 does (`file:line`), what Rust could do, the expected benefit, and its **behavior impact**:
+
+- **none**: observable behavior identical (for example a data structure with better constants, avoiding a copy, compile-time facet typing): the implementer may adopt it, documented as Rust-idiomatic with a proof test;
+- **changes behavior** (for example parsing off the main thread instead of cm6's time-budgeted parse, a typed style model instead of CSS class strings, full UAX #29 clusters instead of cm6's approximation): a human decision, listed in `human-decisions.md` with this evidence.
+
+Benefits are hypotheses until measured (`rules.md` §4.4): give the measurement that would confirm each (input sizes, operation, comparison with cm6 in the harness). Candidates to look for: work cm6 schedules in time slices, caches that exist because of GC pressure, string concatenation and copying, DOM-driven measurement that the layout contract can answer directly, places where Rust's type system can rule out a runtime check that cm6 performs.

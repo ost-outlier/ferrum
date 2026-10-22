@@ -2,7 +2,7 @@
 
 This brief checks a crate implemented with `2-parity-implementation.md` against its approved specification (`1-parity-audit.md`, or `1d-scope-commands.md` for commands) and answers one question: **does the crate implement the specification with 100% precision?** If not, it lists exactly where not, with reproductions.
 
-It applies to every foundation and feature crate, including `ferrum-state` once rebuilt (its specification is the cm6 side of `docs/parity/state/`, see `1-parity-audit.md` §16).
+It applies to every foundation and feature crate, including `ferrum-state` once rebuilt (its specification is the cm6 side of `ferrum/docs/parity/state/`, see `1-parity-audit.md` §16).
 
 This phase is **audit only**: findings are reported, not fixed. The implementer fixes them and the failing gates are re-run.
 
@@ -30,11 +30,11 @@ No documentation audit: READMEs and doc comments are not checked, except the `//
 
 ## 1. Inputs
 
-- The approved specification in `docs/parity/<crate>/`: `inventory`, `dispositions`, `behaviors`, `contracts`, `tests`, `hazards`, `fixtures/`, `oracle/` (cm6 generators).
+- The approved specification in `ferrum/docs/parity/<crate>/`: `inventory`, `dispositions`, `behaviors`, `contracts`, `tests`, `hazards`, `fixtures/`, `oracle/` (cm6 generators).
 - `decisions.md`, `human-decisions.md` (answered), `_cross-crate.md`.
 - The implemented crate at a recorded commit. Record `cargo --version`, Node version and the cm6 package version.
 
-Outputs: `docs/parity/<crate>/conformance.md` (rendered from `raw/conformance.jsonl`: `id, kind (item|behavior|test|fixture|gate), verdict, evidence, repro`), plus the Ferrum replayers and oracle drivers in `docs/parity/<crate>/oracle/ferrum/`.
+Outputs: `ferrum/docs/parity/<crate>/conformance.md` (rendered from `raw/conformance.jsonl`: `id, kind (item|behavior|test|fixture|gate), verdict, evidence, repro`), plus the Ferrum replayers and oracle drivers in `ferrum/docs/parity/<crate>/oracle/ferrum/`.
 
 ---
 
@@ -42,7 +42,7 @@ Outputs: `docs/parity/<crate>/conformance.md` (rendered from `raw/conformance.js
 
 The state audit showed that mechanical checks (inventories from the TypeScript compiler API and from rustdoc JSON, oracles, a replay of cm6 tests) are cheap and find what reading misses. Run every mechanical gate first, for the whole crate; then spend reading effort only where they cannot decide (test assertions, behaviors without runnable fixtures, contracts).
 
-Tools to build once and keep in `docs/parity/tools/`: rustdoc JSON item lister (`RUSTC_BOOTSTRAP=1 cargo rustdoc -p <crate> -- -Z unstable-options --output-format json`; script `docs/parity/state/oracle/tools/ferrum-pub.py`), annotation scanner (`/// cm6:`, `/// cm6 contract:`, `/// cm6 deviation:`, `/// ferrum-only:`, `/// placement:`), test-name and `// covers:` scanner, fixture replayer, literal extractor for test bodies (cm6 TS and Rust).
+Tools to build once and keep in `ferrum/docs/parity/tools/`: rustdoc JSON item lister (`RUSTC_BOOTSTRAP=1 cargo rustdoc -p <crate> -- -Z unstable-options --output-format json`; script `ferrum/docs/parity/state/oracle/tools/ferrum-pub.py`), annotation scanner (`/// cm6:`, `/// cm6 contract:`, `/// cm6 deviation:`, `/// ferrum-only:`, `/// placement:`), test-name and `// covers:` scanner, fixture replayer, literal extractor for test bodies (cm6 TS and Rust).
 
 ---
 

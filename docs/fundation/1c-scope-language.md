@@ -39,12 +39,12 @@ Ferrum's current crate is close to a stub; expect most items to be `MISSING` or 
 - **Indentation.** `getIndentation` resolution order (`indentService` first, then syntax), `IndentContext` options (`overrideIndentation`, `simulateBreak`, `simulateDoubleBreak`), `TreeIndentContext` (`baseIndent`, `baseIndentFor`, `continue`, `textAfter`), `delimitedIndent`/`continuedIndent`/`flatIndent`, `indentOnInput`, `indentUnit` validation. Ferrum's tests for indent-unit errors use `should_panic`: check against cm6 (which throws on invalid config) and against `rules.md` (no panics in production paths).
 - **Folding.** `foldService`, `foldNodeProp`, `foldInside`, `foldable`, `foldState` mapping through changes, `foldEffect`/`unfoldEffect`, fold commands and keymap, `codeFolding` config, placeholder widget, `foldGutter` (model in core, drawing in surface).
 - **Bracket matching.** `matchBrackets` with and without a tree, `bracketMatching` config, `bracketMatchingHandle`. The Ferrum crate README lists `match_brackets`; check whether it exists.
-- **Tests outside the package.** Behaviors with no test in `language/test/` are common. Link them to `lang-*` or `commands` tests where those exist; otherwise record "no cm6 test".
+- **Tests outside the package.** Behaviors with no test in `CodeMirror6/language/test/` are common. Link them to `lang-*` or `commands` tests where those exist; otherwise record "no cm6 test".
 
 ## Calibration notes (not a work list; may contain errors)
 
-- `ParseContext::work` and `ParseContext::changes` in `tree.rs` (~L171–186) ignore their arguments.
-- `SyntaxNode::resolve` ignores `assoc` (`tree.rs` ~L54).
+- `ParseContext::work` and `ParseContext::changes` in `ferrum/crates/ferrum-language/src/tree.rs:171-186` (`work`, `changes`) ignore their arguments.
+- `SyntaxNode::resolve` ignores `assoc` (`ferrum/crates/ferrum-language/src/tree.rs:54`).
 - No tree-sitter dependency in `Cargo.toml`.
 - `javascript.rs` defines a toy language used by tests; cm6 tests that use `@lezer/javascript` cannot be equivalent with it.
-- `ferrum-language/src/README.md` L37 lists `match_brackets`; no function with that name was found.
+- `ferrum/crates/ferrum-language/src/README.md:37` lists `match_brackets`; no function with that name was found.

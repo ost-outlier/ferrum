@@ -85,7 +85,7 @@ The four foundation packages of cm6 depend on each other like this (verified in 
 | language | ~2,700 (+ `@lezer/common`) | 13 | none |
 | commands | ~1,750 | 125 | 57 |
 
-`language` is thinly tested in its own package. Much of its behavior is exercised in `lang-*` packages (`lang-javascript/test/test-indent.ts`, `lang-markdown/test/test-commands.ts`) and in `commands` tests that load `@lezer/javascript` or `lang-html`.
+`language` is thinly tested in its own package. Much of its behavior is exercised in `lang-*` packages (`CodeMirror6/lang-javascript/test/test-indent.ts`, `CodeMirror6/lang-markdown/test/test-commands.ts`) and in `commands` tests that load `@lezer/javascript` or `lang-html`.
 
 ---
 

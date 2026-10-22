@@ -25,7 +25,7 @@ Anything in `_cross-crate.md` owned by another crate is **not** done here: the i
 ## 1. Principles
 
 1. **Nothing diverges silently.** A function that carries a cm6 name but behaves differently is worse than a missing one, because callers will trust it. Either make it behave like cm6, or document the exact deviation next to it (`/// cm6 deviation: ...`) and in the matrix.
-2. **Every item names its cm6 counterpart**, so the mapping can be found with grep: `/// cm6: cursorCharLeft` (for methods: `/// cm6: EditorState.changeByRange`). Items without a counterpart carry `/// ferrum-only: <reason>, see docs/parity/<crate>/ferrum-only.md`. Items placed differently from cm6 carry `/// placement: cm6 has this in <package>`. Items implementing a contract carry `/// cm6 contract: <question>` (for example `/// cm6 contract: EditorView.coordsAtPos`).
+2. **Every item names its cm6 counterpart**, so the mapping can be found with grep: `/// cm6: cursorCharLeft` (for methods: `/// cm6: EditorState.changeByRange`). Items without a counterpart carry `/// ferrum-only: <reason>, see ferrum/docs/parity/<crate>/ferrum-only.md`. Items placed differently from cm6 carry `/// placement: cm6 has this in <package>`. Items implementing a contract carry `/// cm6 contract: <question>` (for example `/// cm6 contract: EditorView.coordsAtPos`).
 3. **Approved decisions are law.** Position unit, line breaks, syntax abstraction, layout contract, command type, threading and style model come from `decisions.md`. If an item cannot be implemented under them, stop and report; do not work around a decision.
 4. **Idiomatic Rust is welcome when documented**: same observable behavior, documented reason, proof test. If observable behavior changes, it is a deviation (principle 1).
 5. **No invented justifications.** If a difference cannot be justified with a concrete, verifiable reason, leave it as `HUMAN DECISION` and ask.
@@ -87,7 +87,7 @@ Report after each group of items: items done, items skipped and why, new finding
 - **A ported test is the same test:** same scenario, same expected values, same assertions. Never weaken an assertion, change an expected value, or add `#[ignore]` to make it pass. A failing ported test is a finding: report it.
 - Every expected value that must differ from cm6 (position unit after D1, line separators after D2, grammar differences after D3) is documented next to the assertion with its cause, verified independently. "To make the test pass" is not a cause.
 - A test with a cm6 name but a different scenario is renamed. Ferrum-only tests are listed as `FERRUM-ONLY` with justification.
-- Test helpers (`mk_state`, `state_str`, …) match cm6's helpers (`commands/test/state.ts`: `|` for a cursor, `<…>` for a range) and have their own tests.
+- Test helpers (`mk_state`, `state_str`, …) match cm6's helpers (`CodeMirror6/commands/test/state.ts`: `|` for a cursor, `<…>` for a range) and have their own tests.
 - Where possible, keep or build the differential oracle (audit T8) and run it for every state-only item touched.
 - When the crate is done, every cm6 test case has a verdict in `tests-side-by-side.md`, and no `MISSING` or `DIFFERENT` row lacks a documented reason.
 
@@ -95,7 +95,7 @@ Report after each group of items: items done, items skipped and why, new finding
 
 ## 5. Documentation
 
-**README wording.** Parity stays the stated goal. Until every row of the crate's matrix is resolved, the crate README says: "Target: parity with `@codemirror/<package>` as defined in `ferrum-foundation.md`. Status: not yet reached, see `docs/parity/<crate>/`." When the matrix is resolved, it may say parity is reached.
+**README wording.** Parity stays the stated goal. Until every row of the crate's matrix is resolved, the crate README says: "Target: parity with `@codemirror/<package>` as defined in `ferrum-foundation.md`. Status: not yet reached, see `ferrum/docs/parity/<crate>/`." When the matrix is resolved, it may say parity is reached.
 
 Also in the crate README:
 

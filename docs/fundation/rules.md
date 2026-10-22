@@ -31,7 +31,7 @@ Local mirrors: cm6 in `/workspace/CodeMirror6/` (upstream: `https://code.haverbe
 Every change to a foundation item follows this cycle:
 
 1. **Find the cm6 tests** for the item in `/workspace/CodeMirror6/<package>/test/` (including `webtest-*.ts`). If cm6 has none, derive tests from the cm6 source and mark them `// derived from cm6 source: <file:line>`.
-2. **Port them first**, with identical scenario, expected values and assertions. Name ported tests `test_cm6_<cm6 file>_<nn>_<slug of the it() name>` so the mapping is greppable. Test helpers mirror cm6's: in `commands/test/state.ts`, `|` marks a cursor and `<…>` marks a selected range.
+2. **Port them first**, with identical scenario, expected values and assertions. Name ported tests `test_cm6_<cm6 file>_<nn>_<slug of the it() name>` so the mapping is greppable. Test helpers mirror cm6's: in `CodeMirror6/commands/test/state.ts`, `|` marks a cursor and `<…>` marks a selected range.
 3. **Red.** Run the test (`cargo test -p <crate> <test name>`) and confirm it fails for the expected reason. With new API, add the minimum signature to compile.
 4. **Green.** Implement by following the cm6 algorithm, without shortcuts or approximations.
 5. **Refactor.** Remove duplication, keep it idiomatic, then run `cargo test --workspace` and `cargo clippy --workspace`. Everything passes with zero warnings.
@@ -90,4 +90,4 @@ Annotate items with their cm6 counterpart so the mapping is greppable:
 3. Work in small units with explicit totals ("n of N done"). Never summarize a list with "etc." or "similar to above"; list remaining items explicitly.
 4. Do not take foundational decisions (D1–D10 in `ferrum-foundation.md`) or approve your own dispositions, statuses or exceptions; ask the maintainer.
 5. Subagents may produce inventories, independent per-module work and verification passes. Decisions and synthesis stay in the main session.
-6. Write every reference for a reader with no context of your session: paths relative to `/workspace/` (`CodeMirror6/…`, `ferrum/…`), never scratch or `/tmp` paths, `file:line` together with the symbol name and the version (cm6 package version, Ferrum commit) it refers to, and ids qualified by the file that defines them. Details: `ferrum/docs/fundation/1-parity-audit.md` §11.1.
+6. Write every reference for a reader with no context of your session: paths relative to `/workspace/` (`CodeMirror6/…`, `ferrum/…`), never scratch or `/tmp` paths, `file:line` together with the symbol name and the version (cm6 package version, Ferrum commit) it refers to, and ids qualified by the file that defines them (instruction documents such as `rules.md` may be named alone: they live in `ferrum/docs/fundation/`). Details: `ferrum/docs/fundation/1-parity-audit.md` §11.1.

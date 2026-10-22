@@ -39,5 +39,5 @@ From a quick look; the audit must find these independently or refute them with e
 
 - A grep found no Ferrum counterpart for `changeFilter`, `transactionExtender`, `languageData`/`languageDataAt`, `phrases`/`phrase`, `toJSON`/`fromJSON`, `wordAt`, `sliceDoc`, `lineBreak`, `isUserEvent`, `appendConfig`, `StateEffectType`, `computeN`.
 - `ropey = "1.6"` is used with default features (`unicode_lines`, `simd`) in the workspace `Cargo.toml`.
-- `Text::line_by_index` (`text.rs` ~L95) converts the whole line to a `String` to strip the separator on each call.
+- `Text::line_by_index` (`ferrum/crates/ferrum-state/src/text.rs:105`) converts the whole line to a `String` to strip the separator on each call.
 - `EditorState::create` returns `Arc<EditorState>`; check where `Arc` changes observable behavior (identity comparisons that cm6 relies on, such as `state.field(f) === prevState.field(f)` for change detection).
