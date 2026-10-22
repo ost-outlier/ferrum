@@ -1,0 +1,90 @@
+R1 create cursor beyond doc => THROWS RangeError: Selection points outside of document
+R1b create {anchor:1,head:2} => 1:2 main=0
+R2 create 2 cursors no allowMulti => 1:1 main=0
+R3 update 2 cursors no allowMulti => 0:0 main=0
+R4 tr.state identity + field update count => {"same":true,"updates":1,"value":1}
+R5 tr.selection when doc changed, no selection => {"selection":"undefined","newSelection":"2:2 main=0"}
+R6 newSelection no change no sel => {"selection":"undefined","newSelection":"1:1 main=0","sameObj":true}
+R7 annotation first match => 1
+R7b user time kept => 42
+R8 auto time type => number
+R9 distinct effect types same value type => {"isE1":true,"isE2":false}
+R9b distinct annotation types same value type => {"a1":5,"a2":"undefined"}
+R10 isUserEvent => {"select":true,"selectPointer":true,"sel":false,"selectPointerX":false,"ann":"select.pointer"}
+R10b userEvent + annotations concat => [1,"input"]
+R11 changeFilter cancel (test#20) => ["one two",7,"one 2"]
+R11b changeFilter split (test#21) => et
+R11c changeFilter masks (test#22) => onwo
+R11d changeFilter off (test#23) => [0,2]
+R11e changeFilter false maps effects+selection => {"doc":"abc","sel":"2:2 main=0","eff":[2]}
+R12 transactionFilter constrain (test#24) => [3,4]
+R12b transactionFilter sequential (test#25) => one, two!
+R12c transactionFilter returns {} (drop all) => {"doc":"abc","docChanged":false}
+R12d transactionFilter order (low prec first) => BA
+R12e changeFilter before transactionFilter => cf,tf,ext
+R12f filter:false skips changeFilter+transactionFilter, not extender => ext
+R12g extender runs twice when tf returns spec array => 2
+R12h filter:false in second spec => a
+R13 extender annotations (test#26) => [100,100]
+R13b multiple extenders (test#27) => ["2,1",true]
+R14 update multiple specs non-sequential => axbyz
+R14b update multiple specs sequential => abxyz
+R14c later selection wins / earlier mapped => 3:3 main=0
+R14d scrollIntoView OR => true
+R14e no specs => [false,"undefined",0]
+R15 reconfigure tabSize (test#6) => [4,2,8]
+R15b appendConfig => [2,3,5]
+R15c reconfigured getter => [false,true,true]
+R15d reconfigure line separator (test#7) => ["undefined",2,"\r\n",1,"\n"]
+R15e reconfigure preserves fields (test#11) => [1,2,"undefined"]
+R16 replaceSelection CRLF text => {"doc":"\"a\\nbxy\"","len":5,"sel":"3:3 main=0","assoc":-1}
+R16b replaceSelection with lineSeparator \r\n => {"sliceDoc":"\"a\\r\\nb\\ncxy\"","len":7,"lines":2,"sel":"5:5 main=0"}
+R16c replaceSelection ranges => {"doc":"XYZcXYZef","sel":"3:3,7:7 main=1"}
+R16d replaceSelection emoji => {"doc":"a😀b","sel":"3:3 main=0"}
+R17 changeByRange maps effects => {"changes":[[0,"XX"],2,[0,"XX"],2],"sel":"2:2,6:6 main=0","effects":[2,6]}
+R17c changeByRange main index + ranges => {"doc":"- -- --- ----","sel":"0-1 2-4 5-8 9-13","main":2}
+R17d changeByRange overlapping changes => {"changes":[[3,"_"],[2,"_"],1],"sel":"1:1,2:2 main=0","doc":"__f"}
+R18 changes() array+nested+lineSep => [[[0,"x"],1,[1],1],[[0,"a","b"],3],[3]]
+R18b changes() with lineSep \r\n => {"json":[[0,"a\nb","c"],3],"newLen":8}
+R18c changes(ChangeSet) passthrough => true
+R19 toText => [4,7,"\"a\\nb\\nc\\nd\""]
+R19b toText with sep \r\n => [2,7,"\"a\\nb\\rc\\nd\""]
+R20 sliceDoc default => ["\"a\\nb\\nc\"","\"\\nb\"",5]
+R20b sliceDoc with sep => ["\"a\\r\\nb\\nc\"","\"\\r\\nb\"",5,2]
+R20c lineBreak => ["\"\\n\"","\"\\r\\n\""]
+R21 create doc string split => [3,7]
+R21b create doc Text instance => true
+R22 toJSON/fromJSON (test#10) => {"json":{"doc":"a\nb","selection":{"ranges":[{"anchor":1,"head":3}],"main":0},"f":{"number":1}},"back":{"n":1},"sel":"1:3 main=0"}
+R22b fromJSON invalid => THROWS RangeError: Invalid JSON representation for EditorState
+R22c toJSON no fields => {"doc":"x","selection":{"ranges":[{"anchor":0,"head":0}],"main":0}}
+R22d fromJSON uses config.extensions only? => [2,3]
+R23 field missing => ["undefined","Field is not present in this state"]
+R24 readOnly combine first => [false,false,true]
+R25 allowMultipleSelections combine some => true
+R26 tabSize combine first => 2
+R27 phrase => ["Hallo x y $ $0 $3","Missing","a Z b","Hallo $1 $2 $$ $0 $3"]
+R28 languageDataAt => [["-","$"],[-1],[1],[]]
+R29 charCategorizer wordChars => [0,2,1,0,0,1,2,1,0]
+R30 wordAt => ["0-3","0-3","0-3","4-7","4-7","null","9-12","13-14","15-16","15-16"]
+R30b wordAt wordChars => 0-5
+R30c wordAt surrogate => 0-4
+R31 invalid change bounds (test#5) => ["Invalid change range -1 to 1 (in doc of length 4)","Invalid change range 2 to 1 (in doc of length 4)","Invalid change range 2 to 10 (in doc of length 4)"]
+R32 selection beyond doc in update => THROWS RangeError: Selection points outside of document
+R33 field init reads earlier field (test#8 variant) => 15
+R33b field init reads later field => 15
+R33c field update reads tr.state => [2]
+R33d dynamic facet from dynamic facet => [42]
+R33e field init reads dynamic facet => 7
+R34 facet identity across update (test#16) => ["0,1",true,"2,1"]
+R35 new field via compartment init sees new config => 2|1+u
+R36 StateEffect.map / mapEffects => {"a":6,"b":"undefined","cSame":true,"list":[6,3],"emptySame":true,"sameWhenUnchanged":true}
+R37 Annotation fields => [true,"v"]
+R38 docChanged => [false,true,false]
+R39 newDoc cached => [true,true,true]
+R40 startState => true
+R41 remote/addToHistory annotations => [true,false]
+R42 empty selection in changeByRange returns cursor assoc => ["0:0 main=0",-1]
+R43 transactionFilter replacing tr via Transaction => !abc
+R44 effects asArray single => 1
+R45 tr annotations user annotations after => 1
+R46 selection mapped through later spec changes => 3:3 main=0

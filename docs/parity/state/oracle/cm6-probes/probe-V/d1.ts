@@ -1,0 +1,11 @@
+import {Text, ChangeSet, findClusterBreak, findColumn, codePointSize, EditorState, EditorSelection} from "../src/index.ts"
+const d = Text.of(["a😀b"])
+console.log("D1a length", d.length)
+const cs = ChangeSet.of({from: 1, insert: "😀"}, 4)
+console.log("D1b insert section", cs.desc.toString(), "newLength", cs.newLength)
+console.log("D1c findClusterBreak(😀,0)", findClusterBreak("😀", 0), "flags", findClusterBreak("🇫🇷🇩🇪", 0))
+console.log("D1d findColumn(😀b,1,4)", findColumn("😀b", 1, 4))
+console.log("D1e codePointSize", codePointSize(0x1F600))
+let st = EditorState.create({doc: "ab", selection: EditorSelection.cursor(1)})
+console.log("D1f replaceSelection cursor", st.update(st.replaceSelection("😀")).state.selection.main.head)
+console.log("D1g sliceString(1,2)", JSON.stringify(d.sliceString(1, 2)))

@@ -1,0 +1,50 @@
+R1 create cursor beyond doc => "10:10 main=0"
+R1x create cursor beyond doc then line_at(head) => PANIC: Invalid position: 10
+R2 create 2 cursors no allowMulti => "0:0,1:1 main=1"
+R3 update 2 cursors no allowMulti => "0:0,1:1 main=0"
+R4 tr.state identity + field update count => (false, 2, 1)
+R5 tr.selection when doc changed, no selection => Some("2:2 main=0")
+R6 tr.selection no change no sel => None
+R7 annotation with two same-type annotations => Some(2)
+R7b user time kept => Some(TransactionTime(42))
+R8 auto time present => Some(true)
+R9 two 'effect types' with same value type usize => (true, false)
+R9b two 'annotation types' with same value type => Some(5)
+R9c UserEvent exact only (no isUserEvent) => (Some("select.pointer"), Some(false))
+R10 transaction filter returning false => (true, Some("one 2"))
+R10b filter order => "AB"
+R10c filter reads tr.state() -> state built (fields run) => 2
+R15 tabSize default and of(2) => (4, 2)
+R16 replaceSelection CRLF text => ("a\r\nbxy", 6, "4:4 main=0", 0)
+R16b replaceSelection with lineSeparator \r\n => ("a\r\nb\ncxy", 8, 3, "6:6 main=0")
+R16c replaceSelection ranges => ("XYZcXYZef", "3:3,7:7 main=1")
+R16d replaceSelection emoji => ("a😀b", "2:2 main=0")
+R17 changeByRange effects not mapped => ("0:2 2 0:2 2", "2:2,6:6 main=0", [2, 4])
+R17c changeByRange main index + ranges => ("- -- --- ----", "0-1 2-4 5-8 9-13", 2)
+R17d changeByRange overlapping changes => ("3:1 2:1 1", "1:1,2:2 main=0", "__f")
+R18 changes() CRLF insert => ("0:4 3", 7)
+R18c changes(Changes::Set) — no counterpart; state.changes takes ChangeSpec only => "n/a"
+R20 doc slice of CRLF doc (no sliceDoc) => ("a\r\nb\nc", 6, 3)
+R21 create doc string split => (4, 8)
+R21c create doc with lineSeparator \r\n, doc a\nb\r\nc => (3, 6)
+R23 field missing => None
+R24 readOnly combine => (true, false, true)
+R25 allowMultipleSelections combine => true
+R26 tabSize combine first => 2
+R29 charCategorizer => [Other, Other, Other, Word, Space, Space, Other, Word]
+R31a invalid change 2..1 => PANIC: Invalid change range 2..1 for document of length 4
+R31b invalid change 2..10 => PANIC: Invalid change range 2..10 for document of length 4
+R32 selection beyond doc in update => "10:10 main=0"
+R33 field init reads earlier field => None
+R33 (test#08 init as written: unwrap_or(0)+10 with f1=5) => 10
+R33d dynamic facet from dynamic facet => PANIC: index out of bounds: the len is 0 but the index is 1
+R33e field init reads dynamic facet => PANIC: index out of bounds: the len is 0 but the index is 0
+R34 facet identity across update (test#16) => ([0, 1], false, true, [2, 1])
+R35 new field via compartment init sees which config => Some("1+u")
+R38 doc_changed => (false, true, false)
+R40 start_state identity => true
+R42 replace_selection("") cursor assoc => ("0:0 main=0", 0)
+R44 apply ignores ...: apply(tr) twice gives different Arcs => false
+R45 apply tr to a different state than start_state => ("Qabc", "0:0 main=0")
+R46 into_spec annotations dropped / scroll => (0, true, true)
+R47 Text.of ignores lineSeparator; Text::from lone CR line => (2, 3)

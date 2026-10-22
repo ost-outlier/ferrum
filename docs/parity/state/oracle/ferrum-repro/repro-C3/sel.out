@@ -1,0 +1,59 @@
+S01 new(3,2) => {from:2,to:3,anchor:3,head:2,assoc:0,goal:None,empty:false,inverted:true}
+S02 new(2,3) => {from:2,to:3,anchor:2,head:3,assoc:0,goal:None,empty:false,inverted:false}
+S03 new(4,4) => {from:4,to:4,anchor:4,head:4,assoc:0,goal:None,empty:true,inverted:false}
+S04 new(2,3).with_goal_column(Some(7)) => {from:2,to:3,anchor:2,head:3,assoc:0,goal:Some(7),empty:false,inverted:false}
+S07 SelectionRange::cursor(5) => {from:5,to:5,anchor:5,head:5,assoc:0,goal:None,empty:true,inverted:false}
+S07b EditorSelection::cursor(5) => [5/5] main=0
+S20 cursor(5).map(ins5,-1) => {from:5,to:5,anchor:5,head:5,assoc:0,goal:None,empty:true,inverted:false}
+S21 cursor(5).map(ins5,1) => {from:6,to:6,anchor:6,head:6,assoc:0,goal:None,empty:true,inverted:false}
+S22 cursor(5,assoc=1).map(ins5,-1) => {from:5,to:5,anchor:5,head:5,assoc:1,goal:None,empty:true,inverted:false}
+S23 new(2,5).map(ins2,-1) => {from:3,to:6,anchor:3,head:6,assoc:0,goal:None,empty:false,inverted:false}
+S24 new(2,5).map(ins5,-1) => {from:2,to:5,anchor:2,head:5,assoc:0,goal:None,empty:false,inverted:false}
+S25 new(2,5).map(ins2,1) => {from:3,to:6,anchor:3,head:6,assoc:0,goal:None,empty:false,inverted:false}
+S26 new(5,2).map(ins2,-1) => {from:3,to:6,anchor:6,head:3,assoc:0,goal:None,empty:false,inverted:true}
+S27 new(2,5).map(del1-6,-1) => {from:1,to:1,anchor:1,head:1,assoc:0,goal:None,empty:true,inverted:false}
+S28 new(5,2).map(del1-6,-1) => {from:1,to:1,anchor:1,head:1,assoc:0,goal:None,empty:true,inverted:false}
+S29 cursor(5,1,goal 8).map(ins0) => {from:7,to:7,anchor:7,head:7,assoc:1,goal:Some(8),empty:true,inverted:false}
+S32 new(2,4).map(ins3) => {from:2,to:6,anchor:2,head:6,assoc:0,goal:None,empty:false,inverted:false}
+S33 cursor(4).map(del2-6) => {from:2,to:2,anchor:2,head:2,assoc:0,goal:None,empty:true,inverted:false}
+S34 cursor(12).map(ins0) => PANIC Position 12 is out of range for changeset of length 10
+S35 new(2,5).map(ins5,1) => {from:2,to:5,anchor:2,head:5,assoc:0,goal:None,empty:false,inverted:false}
+S40 new(5,8).extend(2,2) => {from:2,to:5,anchor:5,head:2,assoc:0,goal:None,empty:false,inverted:true}
+S41 new(5,8).extend(3,10) => {from:3,to:10,anchor:3,head:10,assoc:0,goal:None,empty:false,inverted:false}
+S42 new(5,8).extend(6,9) => {from:5,to:9,anchor:5,head:9,assoc:0,goal:None,empty:false,inverted:false}
+S43 new(5,8).extend(1,9) => {from:1,to:9,anchor:1,head:9,assoc:0,goal:None,empty:false,inverted:false}
+S44 new(5,8).extend(7,1) => {from:1,to:5,anchor:5,head:1,assoc:0,goal:None,empty:false,inverted:true}
+S46 cursor(5,goal 7).extend(9,9) => {from:5,to:9,anchor:5,head:9,assoc:0,goal:None,empty:false,inverted:false}
+S47 new(8,5).extend(3,3) => {from:3,to:8,anchor:8,head:3,assoc:0,goal:None,empty:false,inverted:true}
+S48 new(5,8).extend(9,2) => {from:5,to:9,anchor:5,head:9,assoc:0,goal:None,empty:false,inverted:false}
+S49 cursor(5,assoc 1).extend(5,5) => {from:5,to:5,anchor:5,head:5,assoc:0,goal:None,empty:true,inverted:false}
+S50 cursor(5,-1)==cursor(5,1) => false
+S52 new(2,5) assoc1 == new(2,5) assoc -1 => false
+S53 cursor goal 3 == cursor => false
+S54 new(2,5)==new(5,2) => false
+S57 sel eq different main => false
+S58 sel eq assoc => false
+S70 single(3,3) => [3/3] main=0
+S71 single(3,1) => {from:1,to:3,anchor:3,head:1,assoc:0,goal:None,empty:false,inverted:true}
+S73 create([]) => [0/0] main=0
+S74 create([c1,c3],5) => [1/1,3/3] main=1 main={from:3,to:3,anchor:3,head:3,assoc:0,goal:None,empty:true,inverted:false}
+S75 create([c3,c1],5) => [1/1,3/3] main=0 main={from:1,to:1,anchor:1,head:1,assoc:0,goal:None,empty:true,inverted:false}
+S76 create touch nonempty => [0/2,2/4] main=0
+S77 create cursor at end => [0/2] main=0
+S78 create cursor at start => [2/2,2/4] main=0
+S79 create c0,c0 => [0/0] main=0
+S7A merge => [0/5] main=0 {from:0,to:5,anchor:0,head:5,assoc:0,goal:None,empty:false,inverted:false}
+S7B merge inverted later => [5/0] main=0 {from:0,to:5,anchor:5,head:0,assoc:0,goal:None,empty:false,inverted:true}
+S7C merge drops goal => [1/4] main=0 {from:1,to:4,anchor:1,head:4,assoc:0,goal:None,empty:false,inverted:false}
+S7D merge cursors same pos => [3/3] main=0 {from:3,to:3,anchor:3,head:3,assoc:0,goal:None,empty:true,inverted:false}
+S7E create main tracking => [0/5,7/7,9/9] main=1
+S7F create main merged => [0/5,7/7,9/9] main=0
+S7G create sorted keeps fields => {from:3,to:3,anchor:3,head:3,assoc:1,goal:Some(7),empty:true,inverted:false}
+S7H create main dup identity => [1/3] main=0
+S80 main => {from:3,to:5,anchor:3,head:5,assoc:0,goal:None,empty:false,inverted:false}
+S90 sel.map(empty) => true
+S91 sel.map(del0-6) => [0/0,2/2] main=0
+S92 sel.map(ins1,1) => [3/3,5/7,10/10] main=1
+S93 sel.map(ins1,-1) => [1/1,5/7,10/10] main=1
+S94 Default => [0/0] main=0
+S97 EditorState create sel out of doc => 5
