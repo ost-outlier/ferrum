@@ -7,7 +7,7 @@ Versions: cm6 `@codemirror/language` 6.13.1 (`CodeMirror6/language/package.json`
 This audit is different from the others. cm6's `language` is built on Lezer (`@lezer/common` trees, `NodeType`, `NodeProp`, incremental parsing with `TreeFragment`s, mixed parsing; `@lezer/highlight` tags). Ferrum intends to use tree-sitter behind its own abstraction (decision D3). So the audit has two goals:
 
 1. **Behavior specification, independent of the parser.** What `language` does for an editor (which tree is current, when parsing happens, how indentation, folding, bracket matching, highlighting and language data are computed and exposed), as behaviors with fixtures.
-2. **Parser-coupling map.** For each behavior, which Lezer capability it relies on (node props, `resolveInner`, `enterUnfinishedNodesBefore`, `TreeCursor`, `NodeIterator`, fragments, `Parser.startParse`, `parseMixed`, tags), with `file:line`. This is the evidence for D3 and the input to the syntax contract (`contracts.md`); it is not a design. The implementation sketch (`1-parity-audit.md` §17) may propose how a tree-sitter backend answers each capability, marked as a sketch.
+2. **Parser-coupling map.** For each behavior, which Lezer capability it relies on (node props, `resolveInner`, `enterUnfinishedNodesBefore`, `TreeCursor`, `NodeIterator`, fragments, `Parser.startParse`, `parseMixed`, tags), with `file:line`. This is the evidence for D3 and the input to the syntax contract (`contracts.md`); it is not a design. The implementation sketch (`1-parity-audit.md` §16) may propose how a tree-sitter backend answers each capability, marked as a sketch.
 
 ## Scope
 
@@ -36,16 +36,25 @@ The `@lezer/*` packages are not in the local mirror: install them in the harness
 ## Special attention
 
 - **Parse scheduling.** cm6 parses incrementally with a time budget, viewport first, continuing in the background (`ParseWorker`). Record every timing, budget and viewport behavior: they matter for large documents regardless of parser. Time-budget behavior is a hazard (`Date.now()`, `1-parity-audit.md` §9) and a native opportunity (parsing off the main thread changes observable behavior: list it as such in the sketch, §17.3).
-- **Indentation.** `getIndentation` resolution order (`indentService` first, then syntax), `IndentContext` options (`overrideIndentation`, `simulateBreak`, `simulateDoubleBreak`), `TreeIndentContext` (`baseIndent`, `baseIndentFor`, `continue`, `textAfter`), `delimitedIndent`/`continuedIndent`/`flatIndent`, `indentOnInput` (a `transactionFilter` returning `[tr, {changes, sequential: true}]`, which needs the state's full transaction pipeline: `ferrum/docs/parity/_cross-crate.md` XC-033), `indentUnit` validation (cm6 throws on invalid configuration: an error-contract question).
-- **Folding.** `foldService`, `foldNodeProp`, `foldInside`, `foldable`, `foldState` mapping through changes (fold decorations use non-inclusive sides: consumer values for `RangeSet.map`, XC-010), `foldEffect`/`unfoldEffect`, fold commands and keymap, `codeFolding` config, placeholder widget, `foldGutter` (model in core, drawing in surface).
-- **Bracket matching.** `matchBrackets` with and without a tree, `bracketMatching` config, `bracketMatchingHandle`; it iterates the document with `iterRange` (XC-004).
-- **Language data.** `languageDataProp`, `Language.data`, and how `EditorState.languageDataAt` reaches them (XC-027): commands' comment toggling and the categorizer depend on it.
+- **Indentation.** `getIndentation` resolution order (`indentService` first, then syntax), `IndentContext` options (`overrideIndentation`, `simulateBreak`, `simulateDoubleBreak`), `TreeIndentContext` (`baseIndent`, `baseIndentFor`, `continue`, `textAfter`), `delimitedIndent`/`continuedIndent`/`flatIndent`, `indentOnInput` (a `transactionFilter` returning `[tr, {changes, sequential: true}]`, which needs the state's full transaction pipeline), `indentUnit` validation (cm6 throws on invalid configuration: an error-contract question).
+- **Folding.** `foldService`, `foldNodeProp`, `foldInside`, `foldable`, `foldState` mapping through changes (fold decorations use non-inclusive sides: consumer values for `RangeSet.map`), `foldEffect`/`unfoldEffect`, fold commands and keymap, `codeFolding` config, placeholder widget, `foldGutter` (model in core, drawing in surface).
+- **Bracket matching.** `matchBrackets` with and without a tree, `bracketMatching` config, `bracketMatchingHandle`; it iterates the document with `iterRange`.
+- **Language data.** `languageDataProp`, `Language.data`, and how `EditorState.languageDataAt` reaches them: commands' comment toggling and the categorizer depend on it.
 - **Tests outside the package.** Behaviors without a test in `CodeMirror6/language/test/` are common. Link them to `lang-*` or `commands` tests where those exist; otherwise they get derived tests from fixtures.
 - **Grammar-dependent values.** Every fixture and test value that depends on a Lezer grammar is marked `NEEDS GRAMMAR` with the grammar and version; the conformance audit compares them against the grammar chosen in D3 and lists every changed value.
 
-## Inputs from earlier audits
+## Capabilities to check in the lower crates
 
-From `ferrum/docs/parity/_cross-crate.md`, capabilities language needs from state: XC-004 (`Text` iterators), XC-008 (`iterChangedRanges`), XC-010 (side values in `RangeSet.map`), XC-018 (`RangeSet.update`), XC-020, XC-023, XC-024 (`Facet.from`, `provide`, `StateField.init`, `appendConfig`, dependency-driven computed facets), XC-027 (`languageDataAt`), XC-028 (`isUserEvent`), XC-033 (transaction filters with `sequential`). Check each against the rebuilt `ferrum-state` (A5). From the view audit: the decoration, view plugin and widget APIs that folding, bracket matching and highlighting use.
+`@codemirror/language` uses these state capabilities. For each, check the rebuilt `ferrum-state` public API (§10 of the brief) and record the result in `raw/xc.jsonl`; a missing or different one becomes a register entry against `ferrum-state`. (Register ids, where one already exists, in parentheses.)
+
+- `Text` iteration: `iter`, `iterRange`, `iterLines` (XC-004); `ChangeDesc.iterChangedRanges` (XC-008).
+- `RangeSet.map` with the sides of fold decorations passed through without truncation (XC-010); `RangeSet.update` with `filter`/`filterFrom`/`filterTo`, `sort` and ordering errors (XC-018).
+- `Facet.from`, field `provide`, `StateField.init`, `StateEffect.appendConfig`, computed facets with declared dependencies (XC-020, XC-023, XC-024).
+- `EditorState.languageDataAt` (XC-027); `Transaction.isUserEvent` prefix matching (XC-028).
+- `transactionFilter` returning replacement specs with `sequential: true` (needed by `indentOnInput`) (XC-033).
+
+From `ferrum-view`: the decoration, view plugin and widget APIs that folding, bracket matching and highlighting use, as its conformance report lists them.
+
 
 ## Calibration notes (not a work list; may contain errors)
 

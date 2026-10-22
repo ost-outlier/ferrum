@@ -12,7 +12,7 @@ Paths are relative to `/workspace/`; instruction documents named alone live in `
 
 Do not write code for a crate until:
 
-1. its specification passed **Gate 2** (`1-parity-audit.md` §4): dispositions, behaviors, tests, contracts, hazards and the implementation sketch approved, and the list of obvious decisions (`1-parity-audit.md` §17.2, kept in the crate's `implementation-plan.md`) approved in one decision;
+1. its specification passed **Gate 2** (`1-parity-audit.md` §4): dispositions, behaviors, tests, contracts, hazards and the implementation sketch approved, and the list of obvious decisions (`1-parity-audit.md` §16.2, kept in the crate's `implementation-plan.md`) approved in one decision;
 2. every decision the crate depends on is recorded in `ferrum/docs/parity/decisions.md` (the behaviors list their `deps`), and the crate's `human-decisions.md` is answered;
 3. the crates it depends on have an approved conformance report for the capabilities it needs. A capability still open in `ferrum/docs/parity/_cross-crate.md` makes the items that need it `BLOCKED`: they are not approximated.
 
@@ -90,9 +90,7 @@ Report after each group of items: done, skipped and why, behaviors added, regist
 
 ## 6. Documentation
 
-During implementation, only the mapping annotations (principle 3) and the doc comments needed to use the API. The crate README, `src/README.md`, root README and facade examples are rewritten **after the conformance report is approved**: parity status as the report states it, a table of everything not implemented (`DEFER`, `DROP`, `BLOCKED`, approved deviations) findable by cm6 name, test counts only next to the report's numbers, examples that compile (doctests or examples built in CI). The state audit's `ferrum/docs/parity/state/claims.md` lists the kinds of claims that were false before; do not repeat them.
-
-References in commits, annotations and reports follow `1-parity-audit.md` §11.1.
+During implementation, only the mapping annotations (principle 3) and the doc comments needed to use the API. The crate README, `src/README.md`, root README and facade examples are rewritten **after the conformance report is approved**: parity status as the report states it, a table of everything not implemented (`DEFER`, `DROP`, `BLOCKED`, approved deviations) findable by cm6 name, test counts only next to the report's numbers, examples that compile (doctests or examples built in CI). Claims are limited to what the report states.md` §11.1.
 
 ---
 

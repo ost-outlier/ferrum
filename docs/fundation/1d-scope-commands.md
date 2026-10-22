@@ -14,7 +14,7 @@ No documentation or claims audit (READMEs, doc comments, commit messages): the i
 
 - State, view and language: conformance reports approved (`ferrum/docs/parity/<crate>/conformance.md`).
 - `decisions.md` records D1, D2, D3 (syntax backend and grammars), D4 (layout contract) and **D5 (command types)**. D5 decides how `Command` (receives the view) and `StateCommand` look and where `StateCommand` lives; with it undecided, part B cannot classify any command.
-- Placement decisions already recorded by earlier audits apply: keymap machinery (`KeyBinding`, the keymap facet, key dispatch) belongs to `ferrum-view`; `StateCommand` to `ferrum-state` (unless D5 says otherwise); `isolateHistory` to `ferrum-commands`.
+- Placement rules: keymap machinery (`KeyBinding`, the keymap facet, key dispatch) belongs to `ferrum-view`; `StateCommand` to `ferrum-state` (unless D5 says otherwise); `isolateHistory` to `ferrum-commands`.
 
 ## Scope
 
@@ -86,12 +86,12 @@ Capabilities known to be needed (seed list, not a work list): from view `moveByC
 
 ## Calibration notes (not a work list; may contain errors)
 
-From earlier looks at the existing crate (line numbers at commit `ed70610`, unchanged since `fb99ca1`) and from the `ferrum-state` audit. If part B does not find these independently, it is incomplete; if it finds something different, it prevails, with evidence.
+Facts about the existing crate (line numbers at commit `ed70610`). If part B does not find these independently, it is incomplete; if it finds something different, it prevails, with evidence.
 
 - About 43 of the 116 symbols in the cm6 symbol list had no counterpart in `commands.rs` (history/comment symbols were only checked against the README).
 - Only `StateCommand` exists, `ferrum/crates/ferrum-commands/src/commands.rs:20`, as `fn(&EditorState) -> Option<TransactionSpec>`; cm6 `cursorLineUp` (`CodeMirror6/commands/src/commands.ts:213`) goes through `cursorByLine` (`CodeMirror6/commands/src/commands.ts:204`) → `view.moveVertically`/`moveToLineBoundary`, while `cursor_line_up` (`ferrum/crates/ferrum-commands/src/commands.rs:541`) is state-only. Movement commands appear to always return `Some(..)` where cm6 returns `false` for an unchanged selection.
 - `is_read_only()` is called only at `ferrum/crates/ferrum-commands/src/commands.rs` `:1139` `indent_more`, `:1150` `indent_less`, `:1183` `indent_selection`, `:1308` `insert_newline_and_indent`, against 11 cm6 read-only checks. No cm6 user events are set. History reads the raw `UserEvent` string (`ferrum/crates/ferrum-commands/src/history.rs:489`) instead of prefix matching.
-- 14 `to_string()` calls in `ferrum/crates/ferrum-commands/src/commands.rs` materialize the whole document (cursor/select by char, group and subword; `delete_char_backward`/`forward`), and `find_cluster_break`/`find_word_break`/`find_subword_break` (18 call sites) run over that string; in the old state crate `find_cluster_break` was O(n) per call.
+- 14 `to_string()` calls in `ferrum/crates/ferrum-commands/src/commands.rs` materialize the whole document (cursor/select by char, group and subword; `delete_char_backward`/`forward`), and `find_cluster_break`/`find_word_break`/`find_subword_break` (18 call sites) run over that string; `find_cluster_break` was O(n) per call in the old state crate.
 - Literal `"\n"` at `ferrum/crates/ferrum-commands/src/commands.rs:1041` (`split_line`), `:1384` (`insert_blank_line`) and in `insert_newline_keep_indent`; cm6 uses `state.lineBreak`.
 - `default_keymap` binds Tab/Shift-Tab (`ferrum/crates/ferrum-commands/src/commands.rs:1480`); cm6 keeps Tab in `indentWithTab` (`CodeMirror6/commands/src/commands.ts:1137`). `insert_text`, `dispatch_key` and the `KEYMAP` facet have no counterpart in `@codemirror/commands` (cm6 keymaps live in view).
 - `delete_char_backward` (`ferrum/crates/ferrum-commands/src/commands.rs:662`) removes one grapheme cluster; cm6 `deleteByChar` has an indentation-unit branch and `includeExtending` handling (`CodeMirror6/commands/src/commands.ts:572-585`).

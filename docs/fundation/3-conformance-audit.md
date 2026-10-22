@@ -2,7 +2,7 @@
 
 This brief checks a crate implemented with `2-parity-implementation.md` against its approved specification (`1-parity-audit.md`, or `1d-scope-commands.md` for commands) and answers one question: **does the crate implement the specification with 100% precision?** If not, it lists exactly where not, with reproductions.
 
-It applies to every foundation and feature crate, including `ferrum-state` once rebuilt (its specification is the cm6 side of `ferrum/docs/parity/state/`, completed per `2a-implementation-state.md` §2).
+It applies to every foundation and feature crate, including `ferrum-state` once rebuilt (its specification is `ferrum/docs/parity/state/spec/`, produced by `2a-implementation-state.md` §1).
 
 This phase is **audit only**: findings are reported, not fixed. The implementer fixes them and the failing gates are re-run.
 
@@ -40,9 +40,9 @@ Outputs: `ferrum/docs/parity/<crate>/conformance.md` (rendered from `raw/conform
 
 ## 2. Method: mechanical first, reading second
 
-The state audit showed that mechanical checks (inventories from the TypeScript compiler API and from rustdoc JSON, oracles, a replay of cm6 tests) are cheap and find what reading misses. Run every mechanical gate first, for the whole crate; then spend reading effort only where they cannot decide (test assertions, behaviors without runnable fixtures, contracts).
+Run every mechanical gate first, for the whole crate; they are cheap and find what reading misses. Then spend reading effort only where they cannot decide (test assertions, behaviors without runnable fixtures, contracts).
 
-Tools to build once and keep in `ferrum/docs/parity/tools/`: rustdoc JSON item lister (`RUSTC_BOOTSTRAP=1 cargo rustdoc -p <crate> -- -Z unstable-options --output-format json`; script `ferrum/docs/parity/state/oracle/tools/ferrum-pub.py`), annotation scanner (`/// cm6:`, `/// cm6 contract:`, `/// cm6 deviation:`, `/// ferrum-only:`, `/// placement:`), test-name and `// covers:` scanner, fixture replayer, literal extractor for test bodies (cm6 TS and Rust).
+Tools (`ferrum/docs/parity/tools/README.md`): `ferrum_pub.py` (public items from rustdoc JSON), `check_refs.py`, `render.py`, the cm6 harness. Write once per crate and keep in `ferrum/docs/parity/<crate>/oracle/ferrum/`: the annotation scanner (`/// cm6:`, `/// cm6 contract:`, `/// cm6 deviation:`, `/// ferrum-only:`, `/// placement:`), the test-name and `// covers:` scanner, the fixture replayer, and a literal extractor for test bodies (cm6 TS and Rust). Use one cargo crate and one target directory for all replayers and drivers; parallel builds wait on cargo's lock, so subagents need no other coordination.
 
 ---
 
@@ -66,7 +66,7 @@ Tools to build once and keep in `ferrum/docs/parity/tools/`: rustdoc JSON item l
 
 - Every cm6 case classified `LOGIC-ONLY`, `NEEDS LAYOUT` or `NEEDS GRAMMAR` has a Ferrum test named `test_cm6_<file>_<nn>_<slug>` (rules.md §3).
 - **Mechanical comparison** of each pair: extract the literal inputs and expected values from the cm6 case and from the Ferrum test and diff them. Every difference must be documented next to the assertion with an approved cause (D1 unit translation, D2 separators, D3 grammar); the auditor recomputes translated values from the fixture text instead of trusting the comment.
-- Reading: same scenario and the same assertions (the state audit found tests named after cm6 cases that asserted less, used other inputs, or asserted nothing at all, for example a "serialization" test that serialized nothing).
+- Reading: same scenario and the same assertions: a test named after a cm6 case may assert less, use other inputs, or assert nothing at all.
 - No `#[ignore]`; `#[should_panic]` only where cm6 throws, with the panic documented as the approved error contract.
 - `DOM-ONLY` cases: confirm the semantic each one pins down (from `tests.md`) is covered by some other test.
 - Grammar-dependent cases: values that depend on the grammar are compared against the D3 grammar; every changed value is listed in the report.
@@ -101,7 +101,7 @@ For every hazard listed in `hazards.md` for an item, a test exercises it, and th
 
 ### G8. Cost
 
-For every item whose cost class in `behaviors.md` is local or logarithmic, measure Ferrum on inputs of size n, 10n and 100n (release build; document length, line length or set size as relevant) and compare the growth with cm6 run on the same inputs. Growth worse than cm6's class is `NONCONFORMANT` (state reference: `count_column` took 56 s on a 40,000-character line in release, against 0.35 ms in cm6). Also grep for whole-document materialization (`to_string()` on the document, full iteration) in operations cm6 performs locally (rules.md §6.3).
+For every item whose cost class in `behaviors.md` is local or logarithmic, measure Ferrum on inputs of size n, 10n and 100n (release build; document length, line length or set size as relevant) and compare the growth with cm6 run on the same inputs. Growth worse than cm6's class is `NONCONFORMANT`. Also grep for whole-document materialization (`to_string()` on the document, full iteration) in operations cm6 performs locally (rules.md §6.3).
 
 ### G9. Rules
 
@@ -121,7 +121,7 @@ For every item whose cost class in `behaviors.md` is local or logarithmic, measu
 
 - Reading-based checks (G2 assertion quality, G3 scenario identity, contracts) cover **all** items when the crate has fewer than 100 in-scope items; otherwise at least 25% of items chosen with a recorded seed, plus every item with a hazard, every `CONTRACT` item and every item touched by an approved deviation.
 - A fresh context that did not run the gates re-checks at least 10% of the verdicts (minimum 20), re-runs their reproductions and the gate scripts, and records mismatches in `verification.md`. Mismatches are corrected and the sample extended with a new seed until it comes back clean.
-- No shared boilerplate: a verdict reason shared by several rows is a group entry that must hold for each member (the state audit found one sentence copied onto 55 rows that was false for some of them).
+- No shared boilerplate: a verdict reason shared by several rows is a group entry that must hold for each member.
 
 ---
 

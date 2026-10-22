@@ -165,11 +165,14 @@ cm6 never lays out text; the browser does. In Ferrum:
 
 ---
 
-## 5. State of the code and of the audits
+## 5. State of the code
 
-- **`ferrum-state`** was audited against `@codemirror/state` 6.7.6 on 2026-10-21 (`ferrum/docs/parity/state/`, at commit `fb99ca1`). Of 948 cm6 behaviors, 22% were implemented and tested, 14% implemented but untested, 25% different and 33% missing; 68 of 172 cm6 test cases had an equivalent Ferrum test. The facet/configuration model and the transaction pipeline differ from cm6 in structure; `ChangeSet` and `changeByRange` matched cm6 on every ASCII oracle case. Details: `ferrum/docs/parity/state/progress.md`, `ferrum/docs/parity/state/api-matrix.md`, `ferrum/docs/parity/decisions-evidence.md`, `ferrum/docs/parity/_cross-crate.md`.
-- **`ferrum-view`, `ferrum-language`, `ferrum-commands`** have not been audited. The preliminary observations that preceded the audits are in git history (this section at commit `ed70610`); the ones still useful are carried as calibration notes into `1b-scope-view.md` (keymap items placed in commands) and `1d-scope-commands.md` (the existing commands code).
-- **Facade and docs.** The README's claims were audited for state only (`ferrum/docs/parity/state/claims.md`); documentation is rewritten per crate after its conformance report is approved. Licensing (MIT in the manifests, MIT/Apache-2.0 in the README, no license files, no cm6 notice) is decision D9.
+- **`ferrum-state`**: audited (`ferrum/docs/parity/state/`); the existing code is structurally different from cm6 in its facet model, transaction pipeline and selection model, and is rebuilt (§7, `2a-implementation-state.md`).
+- **`ferrum-view`, `ferrum-language`**: not audited; rebuilt from their specification audits.
+- **`ferrum-commands`**: not audited; its code is evaluated item by item as a quarry (`1d-scope-commands.md`).
+- **Documentation**: rewritten per crate after its conformance report is approved. Licensing (MIT in the manifests, MIT/Apache-2.0 in the README, no license files, no cm6 notice) is decision D9.
+
+Audit results and the history of the method: `LEARNINGS.md`.
 
 ---
 
@@ -203,20 +206,20 @@ For ASCII-only tests all three give identical numbers, so the choice mostly affe
 
 ---
 
-## 7. Approach (decided by the maintainer after the state audit, 2026-10-21)
+## 7. Approach (decided by the maintainer, 2026-10-21)
 
 Rebuild in place, crate by crate, in dependency order. The existing code is not a base: each crate is specified from cm6, implemented from the specification, and checked by a conformance audit. The one exception is `ferrum-commands`, whose existing code is evaluated item by item as a quarry. Record this in `ferrum/docs/parity/decisions.md` together with D1–D10.
 
 | Crate | Specification | Implementation | Existing code |
 |---|---|---|---|
-| `ferrum-state` | the cm6 side of the state audit, completed per `2a-implementation-state.md` §2 | `2a-implementation-state.md` | not a base; may be consulted only for the algorithms the oracle confirmed (`2a` §4) |
+| `ferrum-state` | `ferrum/docs/parity/state/spec/`, produced by `2a-implementation-state.md` §1 (Phase 0) | `2a-implementation-state.md` | not a base; may be consulted only for the algorithms the oracle confirmed (`2a` §4) |
 | `ferrum-view` | `1-parity-audit.md` + `1b-scope-view.md` | `2-parity-implementation.md` | not read, except the view-owned keymap items in `ferrum-commands` (`1b` quarry) |
 | `ferrum-language` | `1-parity-audit.md` + `1c-scope-language.md` | `2-parity-implementation.md` | not read |
 | `ferrum-commands` | `1d-scope-commands.md` (specification, quarry, feedback) | `2-parity-implementation.md` | quarry: `REUSE`/`ADAPT` code and `KEEP`/`FIX` tests may be kept |
 | `ferrum-view-gpui` | none yet | after the foundation | frozen; later a thin adapter implementing the layout and input contracts |
 | `ferrum` (facade) | none | re-exports only (`rules.md` §2.4) | updated when the crates it re-exports change |
 
-Take the decisions first: D1 and D2 touch almost every position computation, so implementing before deciding them is wasted work. Why the existing code is not kept: the state audit showed that its tests named after cm6 cases often asserted less or something else, and that the facet model, the transaction pipeline and the selection model were structurally different from cm6; patching would preserve wrong shapes.
+Take the decisions first: D1 and D2 touch almost every position computation, so implementing before deciding them is wasted work.
 
 ---
 

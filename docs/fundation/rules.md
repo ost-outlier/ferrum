@@ -86,7 +86,7 @@ Annotate items with their cm6 counterpart so the mapping is greppable:
 ## 7. Working sessions (AI agents)
 
 1. Start by reading, in order: `ferrum-foundation.md`, this file, the brief for the current phase, `ferrum/docs/parity/decisions.md`, and the current crate's `progress.md`.
-2. State lives in files, not in the conversation. Update `progress.md` (done, remaining, totals, open questions) before ending a session.
+2. State lives in files, not in the conversation. Instruction documents hold rules only; what an audit taught about the method, and how the documents changed, goes to `LEARNINGS.md` (not required reading to run a phase). Update `progress.md` (done, remaining, totals, open questions) before ending a session.
 3. Work in small units with explicit totals ("n of N done"). Never summarize a list with "etc." or "similar to above"; list remaining items explicitly.
 4. Do not take foundational decisions (D1–D10 in `ferrum-foundation.md`) or approve your own dispositions, statuses or exceptions; ask the maintainer.
 5. Subagents may produce inventories, independent per-module work and verification passes. Decisions and synthesis stay in the main session.

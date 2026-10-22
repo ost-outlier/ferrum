@@ -18,7 +18,7 @@ BARE = re.compile(r'(?<![\w/.@-])(?:(?:state|view|language|commands|streamparser
 OLDCOPY = re.compile(r'/workspace/(?:1-parity-audit|1[a-d]-scope-[\w-]+|2[a-z]?-[\w-]+|3-conformance-audit|ferrum-foundation|rules)\.md')
 QID = re.compile(r'`((?:ferrum|CodeMirror6)/[\w./-]+\.md)`[ #]((?:R|P|S|T|W)[\w-]*\d[\w-]*)')
 # Paths that are planned but not yet written; a line may opt out with <!-- refs:ignore --> (for quoted bad examples).
-PLANNED = re.compile(r'ferrum/docs/parity/(?:decisions\.md|(?!state/|tools/)[\w-]+/.*)$')  # decisions.md and future crate folders
+PLANNED = re.compile(r'ferrum/docs/parity/(?:decisions\.md|state/spec(?:/.*)?|(?!state/|tools/)[\w-]+/.*)$')  # decisions.md and future crate folders
 lines_cache = {}
 def nlines(p):
     if p not in lines_cache: lines_cache[p] = p.read_text(errors='replace').count('\n') + 1

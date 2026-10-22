@@ -7,7 +7,7 @@ Read this first when you follow a reference from any document under `ferrum/docs
 ## Paths
 
 - Every path is relative to `/workspace/`: `CodeMirror6/…` is the cm6 mirror, `ferrum/…` the Ferrum repository. Example: `CodeMirror6/state/src/text.ts:38`, `ferrum/crates/ferrum-state/src/text.rs:97`.
-- Instruction documents live only in `ferrum/docs/fundation/` (`ferrum-foundation.md`, `rules.md`, the `1-…` audit briefs and scope sheets, the implementation briefs `2-parity-implementation.md` and `2a-implementation-state.md`, `3-conformance-audit.md`). There are no copies elsewhere. Inside instruction documents, a bare file name (`rules.md`) means that folder.
+- Instruction documents live only in `ferrum/docs/fundation/` (`ferrum-foundation.md`, `rules.md`, the `1-…` audit briefs and scope sheets, the implementation briefs `2-parity-implementation.md` and `2a-implementation-state.md`, `3-conformance-audit.md`, and `LEARNINGS.md`, the history of the method). There are no copies elsewhere. Inside instruction documents, a bare file name (`rules.md`) means that folder.
 - `ferrum_strategic_architecture_vision.md` is not an instruction document: it lives outside the repository at `/workspace/ferrum_strategic_architecture_vision.md` and is a source of claims only (`ferrum/docs/fundation/ferrum-foundation.md` §9).
 - `file:line` references carry the version they were written against in the document's reading header. When a line has drifted, find the symbol named next to it at that version (`git show <commit>:<path>`).
 - External sources: Rust crates as `<crate> <version> src/<file>:<line>` (for example `ropey 1.6.1 src/str_utils.rs:12-18`, from crates.io); npm packages as `<package> <version> <file>` (for example `@marijn/find-cluster-break 1.0.4 src/index.js:48`).
@@ -20,7 +20,7 @@ Read this first when you follow a reference from any document under `ferrum/docs
 | `ferrum/docs/fundation/` | instruction documents (what to do) |
 | `ferrum/docs/parity/` | this index, `_cross-crate.md` (register), `decisions-evidence.md`, `decisions.md` (written by a human; not yet written) |
 | `ferrum/docs/parity/<crate>/` | one audit: deliverables, `raw/` (evidence produced by chunk subagents), `oracle/` (harness sources) |
-| `ferrum/docs/parity/tools/` | `check_refs.py` (reference checker), `normalize_refs.py` (one-off rewrite applied to the state audit) |
+| `ferrum/docs/parity/tools/` | shared audit tools: harness setup, inventories, rendering, reference checker (`ferrum/docs/parity/tools/README.md`) |
 
 ## Id schemes
 
