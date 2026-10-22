@@ -6,10 +6,12 @@ You are one subagent in the parity audit of the Rust crate `ferrum-state` agains
 
 ## Read first (in full)
 
-1. `/workspace/ferrum-foundation.md`
-2. `/workspace/rules.md`
-3. `/workspace/1-parity-audit.md` (the brief: sections 2, 4, 6, 7, 10, 11, 13 apply directly to you)
-4. `/workspace/1a-scope-state.md` (scope sheet; its "Special attention" section is mandatory)
+(Historical: the versions these subagents read are those at commit `f63225f`; read them with `git -C /workspace/ferrum show f63225f:docs/fundation/<file>`.) <!-- refs:ignore: git path syntax -->
+
+1. `ferrum/docs/fundation/ferrum-foundation.md`
+2. `ferrum/docs/fundation/rules.md`
+3. `ferrum/docs/fundation/1-parity-audit.md` (the brief: sections 2, 4, 6, 7, 10, 11, 13 apply directly to you)
+4. `ferrum/docs/fundation/1a-scope-state.md` (scope sheet; its "Special attention" section is mandatory)
 5. Your raw inventories: `ferrum/docs/parity/state/raw/a1-cm6-exports.md`, `ferrum/docs/parity/state/raw/a2-ferrum-pub.md`, `ferrum/docs/parity/state/raw/t1-cm6-tests.md`, `ferrum/docs/parity/state/raw/t2-ferrum-tests.md` (filter by your chunk id).
 
 `ferrum/docs/parity/decisions.md` does not exist: no foundational decision (D1–D10) has been taken. Do not take any.

@@ -2,7 +2,8 @@
 
 Checks Markdown files for references an AI reader cannot follow:
   SCRATCH   path under /tmp, a scratchpad or SCR/
-  ROOT      path relative to an unstated root (state/src/..., crates/ferrum-...)
+  ROOT      path relative to an unstated root (state/src/..., crates/ferrum-...), or an
+            instruction document outside ferrum/docs/fundation/
   MISSING   path rooted at /workspace/ (CodeMirror6/..., ferrum/...) that does not exist
   LINE      file:line beyond the end of the file
   ID        "`<file>.md` R9"-style evidence id not found in that file
@@ -14,6 +15,7 @@ W = pathlib.Path('/workspace')
 PATH = re.compile(r'(?<![\w/.@-])((?:CodeMirror6|ferrum)/[\w./-]*[\w])(?::L?(\d+))?')
 SCR = re.compile(r'/tmp/|scratchpad|(?<![\w/])SCR/')
 BARE = re.compile(r'(?<![\w/.@-])(?:(?:state|view|language|commands|streamparser|lang-[a-z]+)/(?:src|test)/|crates/ferrum|docs/(?:parity|fundation)/)')
+OLDCOPY = re.compile(r'/workspace/(?:1-parity-audit|1[a-d]-scope-[\w-]+|2[a-z]?-[\w-]+|3-conformance-audit|ferrum-foundation|rules)\.md')
 QID = re.compile(r'`((?:ferrum|CodeMirror6)/[\w./-]+\.md)`[ #]((?:R|P|S|T|W)[\w-]*\d[\w-]*)')
 # Paths that are planned but not yet written; a line may opt out with <!-- refs:ignore --> (for quoted bad examples).
 PLANNED = re.compile(r'ferrum/docs/parity/(?:decisions\.md|(?!state/|tools/)[\w-]+/.*)$')  # decisions.md and future crate folders
@@ -27,6 +29,7 @@ def check(md, out):
         if line.startswith('```'): in_code = not in_code
         if 'refs:ignore' in line: continue
         for m in SCR.finditer(line): out.append(('SCRATCH', md, i, line[max(0, m.start()-30):m.end()+40]))
+        for m in OLDCOPY.finditer(line): out.append(('ROOT', md, i, m.group(0) + ' (instruction docs live only in ferrum/docs/fundation/)'))
         for m in ([] if in_code else BARE.finditer(line)): out.append(('ROOT', md, i, line[max(0, m.start()-10):m.end()+40]))
         for m in PATH.finditer(line):
             rel, ln = m.group(1), m.group(2)
