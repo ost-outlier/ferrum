@@ -2,7 +2,7 @@
 
 > What: the shared tools of the parity audits and how to run them. Versions: Node 22, TypeScript 5.6.3 (installed in the harness), Python 3. Ids: none.
 
-All commands run from the workspace root, written `/workspace` (`rules.md` §8.1). Paths in this file are relative to it. The tools find the root themselves (the directory that contains `ferrum/`), or take it from `FERRUM_WORKSPACE`.
+All commands run from `/workspace`. Paths in this file are relative to `/workspace/`. Where the folder that holds `ferrum/` is not at `/workspace` (a cloud VM, a native install), the tools still find it from their own location, or from `FERRUM_WORKSPACE`.
 
 | Tool | Phase | Command | Output |
 |---|---|---|---|
