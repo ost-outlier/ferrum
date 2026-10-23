@@ -2,7 +2,7 @@
 
 This brief checks a crate implemented with `2-parity-implementation.md` against its approved specification (`1-parity-audit.md`, or `1d-scope-commands.md` for commands) and answers one question: **does the crate implement the specification with 100% precision?** If not, it lists exactly where not, with reproductions.
 
-It applies to every foundation and feature crate, including `ferrum-state` once rebuilt (its specification is `ferrum/docs/parity/state/spec/`, produced by `2a-implementation-state.md` §1).
+It applies to every foundation and feature crate, including `ferrum-state` once rebuilt (its specification is `docs/parity/state/spec/`, produced by `2a-implementation-state.md` §1).
 
 This phase is **audit only**: findings are reported, not fixed. The implementer fixes them and the failing gates are re-run.
 
@@ -30,13 +30,13 @@ No documentation audit: READMEs and doc comments are not checked, except the `//
 
 ## 1. Inputs
 
-- The approved specification in `ferrum/docs/parity/<crate>/`: `inventory`, `dispositions`, `behaviors`, `contracts`, `tests`, `hazards`, `fixtures/`, `oracle/` (cm6 generators).
+- The approved specification in `docs/parity/<crate>/`: `inventory`, `dispositions`, `behaviors`, `contracts`, `tests`, `hazards`, `fixtures/`, `oracle/` (cm6 generators).
 - `decisions.md`, `human-decisions.md` (answered), `_cross-crate.md`.
 - The implemented crate at a recorded commit. Record `cargo --version`, Node version and the cm6 package version.
 
 **Read before starting (main session):** this brief, the inputs above as counts and summaries (subagents read the rows of their module), and the crate's `progress.md`. Subagents read only their card (the template of `1-parity-audit.md` Appendix A, adapted to the gates they check).
 
-Outputs: `ferrum/docs/parity/<crate>/conformance.md` (rendered from `raw/conformance.jsonl`: `id, kind (item|behavior|test|fixture|gate), verdict, evidence, repro`), plus the Ferrum replayers and oracle drivers in `ferrum/docs/parity/<crate>/oracle/ferrum/`.
+Outputs: `docs/parity/<crate>/conformance.md` (rendered from `raw/conformance.jsonl`: `id, kind (item|behavior|test|fixture|gate), verdict, evidence, repro`), plus the Ferrum replayers and oracle drivers in `docs/parity/<crate>/oracle/ferrum/`.
 
 ---
 
@@ -44,7 +44,7 @@ Outputs: `ferrum/docs/parity/<crate>/conformance.md` (rendered from `raw/conform
 
 Run every mechanical gate first, for the whole crate; they are cheap and find what reading misses. Then spend reading effort only where they cannot decide (test assertions, behaviors without runnable fixtures, contracts).
 
-Tools (`ferrum/docs/parity/tools/README.md`): `ferrum_pub.py` (public items from rustdoc JSON), `check_refs.py`, `render.py`, the cm6 harness. Write once per crate and keep in `ferrum/docs/parity/<crate>/oracle/ferrum/`: the annotation scanner (the mapping and qualifier forms of `rules.md` §3.6), the test-name and `// covers:` scanner, the fixture replayer, and a literal extractor for test bodies (cm6 TS and Rust). Use one cargo crate and one target directory for all replayers and drivers; parallel builds wait on cargo's lock, so subagents need no other coordination.
+Tools (`docs/parity/tools/README.md`): `ferrum_pub.py` (public items from rustdoc JSON), `check_refs.py`, `render.py`, the cm6 harness. Write once per crate and keep in `docs/parity/<crate>/oracle/ferrum/`: the annotation scanner (the mapping and qualifier forms of `rules.md` §3.6), the test-name and `// covers:` scanner, the fixture replayer, and a literal extractor for test bodies (cm6 TS and Rust). Use one cargo crate and one target directory for all replayers and drivers; parallel builds wait on cargo's lock, so subagents need no other coordination.
 
 ---
 

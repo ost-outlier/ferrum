@@ -4,7 +4,7 @@ This brief implements a crate from its approved specification: `1-parity-audit.m
 
 For `ferrum-state` use `2a-implementation-state.md`: its audit followed the previous brief, so its specification must first be completed, and it has crate-specific rules. Everything below applies to it as well unless `2a` says otherwise.
 
-Test, annotation, error-contract and commit rules are in `rules.md` (§3, §6); this brief does not repeat them. Paths are relative to `/workspace/`; instruction documents named alone live in `ferrum/docs/fundation/` (`ferrum/docs/parity/README.md`).
+Test, annotation, error-contract and commit rules are in `rules.md` (§3, §6); this brief does not repeat them. Paths are relative to the repository root; instruction documents named alone live in `docs/fundation/` (`docs/parity/README.md`).
 
 ---
 
@@ -13,10 +13,10 @@ Test, annotation, error-contract and commit rules are in `rules.md` (§3, §6); 
 Do not write code for a crate until:
 
 1. its specification passed **Gate 2** (`1-parity-audit.md` §4): dispositions, behaviors, tests, contracts, hazards and the implementation sketch approved, and the list of obvious decisions (`1-parity-audit.md` §16.2, kept in the crate's `implementation-plan.md`) approved in one decision;
-2. every decision the crate depends on is recorded in `ferrum/docs/parity/decisions.md` (the behaviors list their `deps`), and the crate's `human-decisions.md` is answered;
-3. the crates it depends on have an approved conformance report for the capabilities it needs. A capability still open in `ferrum/docs/parity/_cross-crate.md` makes the items that need it `BLOCKED`: they are not approximated.
+2. every decision the crate depends on is recorded in `docs/parity/decisions.md` (the behaviors list their `deps`), and the crate's `human-decisions.md` is answered;
+3. the crates it depends on have an approved conformance report for the capabilities it needs. A capability still open in `docs/parity/_cross-crate.md` makes the items that need it `BLOCKED`: they are not approximated.
 
-**Read before starting (main session):** this brief, `ferrum/docs/parity/decisions.md`, `ferrum/docs/parity/README.md`, the crate's specification folder `ferrum/docs/parity/<crate>/` (start with `progress.md`, `implementation-plan.md`, then `contracts.md`; read `behaviors.md`, `tests.md` and `hazards.md` as counts and summaries, since the subagents read the rows of their module), and `ferrum/docs/parity/_cross-crate.md`. Subagents read only their card (Appendix A).
+**Read before starting (main session):** this brief, `docs/parity/decisions.md`, `docs/parity/README.md`, the crate's specification folder `docs/parity/<crate>/` (start with `progress.md`, `implementation-plan.md`, then `contracts.md`; read `behaviors.md`, `tests.md` and `hazards.md` as counts and summaries, since the subagents read the rows of their module), and `docs/parity/_cross-crate.md`. Subagents read only their card (Appendix A).
 
 ---
 
@@ -45,7 +45,7 @@ Surfaces (`ferrum-view-gpui`, later `ferrum-view-wgpu`) and the facade are updat
 ## 3. Starting the crate
 
 - Start from an empty module tree in the existing crate directory, following the module map of `implementation-plan.md`. The previous code of the crate stays readable in git history; it is not read for the implementation.
-- Exceptions, and only these: rows of a quarry (`ferrum/docs/parity/commands/quarry.md`, `ferrum/docs/parity/view/quarry.md`) with verdict `REUSE` or `ADAPT` may be copied and adapted; tests with verdict `KEEP` or `FIX` may be reused after the stated fix. Cite the quarry row in the commit message.
+- Exceptions, and only these: rows of a quarry (`docs/parity/commands/quarry.md`, `docs/parity/view/quarry.md`) with verdict `REUSE` or `ADAPT` may be copied and adapted; tests with verdict `KEEP` or `FIX` may be reused after the stated fix. Cite the quarry row in the commit message.
 - Types and invariants first (what everything else uses), then modules in the order of `implementation-plan.md`, items in cm6 source order, so that reviewers can read both side by side.
 
 ### 3.1 Contract-first items
@@ -67,7 +67,7 @@ The unit of work is a **module**: one cm6 source file in scope, or the group of 
 |---|---|---|---|
 | 1. Skeleton | main session | The module's public items from `implementation-plan.md`: types, private fields, signatures with `todo!()` bodies, annotations (`rules.md` §3.6). It compiles. | committed (`feat(<crate>): <module> skeleton`) |
 | 2. Tests | test subagent, fresh context | For the module's rows of `tests.md`, `behaviors.md`, `hazards.md` and its fixtures: every cm6 case ported (`rules.md` §3.1–3.4); a derived test, from its fixture, for every behavior without a cm6 test; a test for every listed hazard (identity, caching, consumer values, error path, ordering); a scaling probe (n and 10n) for every item whose cost class is local or logarithmic. Every test compiles and fails at a `todo!()`. | committed (`test(<crate>): <module>`); report lists counts, behaviors without a test (must be none), tests that pass against the skeleton (vacuous or testing a default: each is fixed or explained), questions |
-| 3. Implementation | implementer: the main session for a small module, otherwise a subagent | Implement until every test of the module passes, following the cm6 algorithm and every behavior the cm6 code shows (§2.1). Never edit a test file: a test that looks wrong is reported to the main session, which decides with the test subagent or the maintainer. Run the fixture replayer for the module (Ferrum side kept in `ferrum/docs/parity/<crate>/oracle/ferrum/`): 0 mismatches. Run the scaling probes: a superlinear result is a defect, not a performance note. `cargo test --workspace` and `cargo clippy --workspace` with zero warnings. | committed per item or tightly coupled group, messages citing behavior ids; module rows in `ferrum/docs/parity/<crate>/implementation.md` (item done, tests, fixtures, open points) |
+| 3. Implementation | implementer: the main session for a small module, otherwise a subagent | Implement until every test of the module passes, following the cm6 algorithm and every behavior the cm6 code shows (§2.1). Never edit a test file: a test that looks wrong is reported to the main session, which decides with the test subagent or the maintainer. Run the fixture replayer for the module (Ferrum side kept in `docs/parity/<crate>/oracle/ferrum/`): 0 mismatches. Run the scaling probes: a superlinear result is a defect, not a performance note. `cargo test --workspace` and `cargo clippy --workspace` with zero warnings. | committed per item or tightly coupled group, messages citing behavior ids; module rows in `docs/parity/<crate>/implementation.md` (item done, tests, fixtures, open points) |
 | 4. Check | main session | From the reports and `git`, not from the sources: every behavior id of the module is named by a `// covers:` line; the test files are unchanged since the step-2 commit (`git diff <commit> -- <test files>` is empty, or each change was approved and is listed); counts recorded. | `progress.md` updated: module done, tokens used per step |
 
 - **Parallelism.** The test subagent of the next module may run while the current module is implemented, within the limit of 4 subagents at a time (`1-parity-audit.md` §11). A module whose types are still changing waits.
@@ -115,17 +115,17 @@ The crate is ready for the conformance audit when every in-scope item is impleme
 
 ## Appendix A. Cards for implementation subagents (templates)
 
-The main session copies these into `ferrum/docs/parity/<crate>/implementation-cards.md`, fills in the bracketed parts, and gives each subagent its card plus its module assignment.
+The main session copies these into `docs/parity/<crate>/implementation-cards.md`, fills in the bracketed parts, and gives each subagent its card plus its module assignment.
 
 ```
 # Test card: [crate] implementation, module [module]
 
-Binding rules: ferrum/docs/fundation/rules.md (loaded through ferrum/AGENTS.md; if it is not in your context, read it first).
+Binding rules: docs/fundation/rules.md (loaded through AGENTS.md; if it is not in your context, read it first).
 This card adds to those rules and never relaxes them; if the two disagree, stop and report.
 
 You write the tests of module [module] of [crate] from its approved specification. You write no implementation code
 and you do not read [crate source files of the module] beyond the skeleton's signatures.
-Read: rows of module [module] in ferrum/docs/parity/[crate]/tests.md, behaviors.md, hazards.md; fixtures [files];
+Read: rows of module [module] in docs/parity/[crate]/tests.md, behaviors.md, hazards.md; fixtures [files];
 test helper specification in tests.md; the skeleton at commit [commit].
 Write: [test files]. Each test: rules.md §3 (same test as cm6; test_cm6_ names; // covers: ids; derived tests marked).
 Every behavior gets a test; every listed hazard gets a test; local/log items get a scaling probe (n, 10n).
@@ -137,11 +137,11 @@ tests passing against the skeleton, questions. Facts only.
 ```
 # Implementation card: [crate] implementation, module [module]
 
-Binding rules: ferrum/docs/fundation/rules.md (loaded through ferrum/AGENTS.md; if it is not in your context, read it first).
+Binding rules: docs/fundation/rules.md (loaded through AGENTS.md; if it is not in your context, read it first).
 This card adds to those rules and never relaxes them; if the two disagree, stop and report.
 
 You implement module [module] of [crate] so that its tests pass. Never edit [test files]; a test that looks wrong
-is reported, not changed. Read: the cm6 source [CodeMirror6/... files] and every helper it uses; rows of module
+is reported, not changed. Read: the cm6 source [mirrors/cm6/... files] and every helper it uses; rows of module
 [module] in behaviors.md, hazards.md, contracts.md; decisions [ids].
 Done when: all tests of the module pass; fixture replayer [command] reports 0 mismatches; scaling probes are not
 superlinear; cargo test --workspace and cargo clippy --workspace show zero warnings; implementation.md rows written.

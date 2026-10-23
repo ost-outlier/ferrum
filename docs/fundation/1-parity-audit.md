@@ -6,15 +6,15 @@ It applies to `ferrum-view`, `ferrum-language` and every later crate (search, au
 
 The audit reads **cm6 only**, plus the public API of the Ferrum crates below the audited one. It never reads, tests or describes existing Ferrum code of the crate being audited. It writes no Ferrum code. After Gate 2 the crate is implemented with `2-parity-implementation.md` and checked with `3-conformance-audit.md`.
 
-Paths are relative to `/workspace/` (`CodeMirror6/…` is the cm6 mirror, `ferrum/…` the repository); instruction documents named alone live in `ferrum/docs/fundation/`; id schemes are resolved in `ferrum/docs/parity/README.md`.
+Paths are relative to the repository root (`mirrors/cm6/…` is the cm6 mirror, `rules.md` §8.1); instruction documents named alone live in `docs/fundation/`; id schemes are resolved in `docs/parity/README.md`.
 
 ---
 
 ## 1. Preconditions and inputs
 
-- **Decisions.** D1 (position unit) and D2 (line breaks) are recorded in `ferrum/docs/parity/decisions.md` before phase P2. Crate-specific decisions (D3 for language, D4/D7/D8 for view) may still be open: the audit collects their evidence and states the dependent behaviors without assuming an answer.
-- **Lower crates.** For each Ferrum crate the audited crate depends on: its approved conformance report (`ferrum/docs/parity/<crate>/conformance.md`) and its public API. If a lower crate is not implemented yet, use its approved specification (`inventory`, `dispositions`, `behaviors`).
-- **Read before starting (main session):** this brief, the scope sheet, `ferrum/docs/parity/decisions.md`, `ferrum/docs/parity/_cross-crate.md`, the crate's `progress.md` if it exists (it names the current phase and the sections to re-read after a compaction, `rules.md` §7.2). Subagents read only their card (Appendix A); `rules.md` reaches them through `ferrum/AGENTS.md`.
+- **Decisions.** D1 (position unit) and D2 (line breaks) are recorded in `docs/parity/decisions.md` before phase P2. Crate-specific decisions (D3 for language, D4/D7/D8 for view) may still be open: the audit collects their evidence and states the dependent behaviors without assuming an answer.
+- **Lower crates.** For each Ferrum crate the audited crate depends on: its approved conformance report (`docs/parity/<crate>/conformance.md`) and its public API. If a lower crate is not implemented yet, use its approved specification (`inventory`, `dispositions`, `behaviors`).
+- **Read before starting (main session):** this brief, the scope sheet, `docs/parity/decisions.md`, `docs/parity/_cross-crate.md`, the crate's `progress.md` if it exists (it names the current phase and the sections to re-read after a compaction, `rules.md` §7.2). Subagents read only their card (Appendix A); `rules.md` reaches them through `AGENTS.md`.
 
 ---
 
@@ -31,10 +31,10 @@ Paths are relative to `/workspace/` (`CodeMirror6/…` is the cm6 mirror, `ferru
 
 ## 3. Deliverables
 
-All in `ferrum/docs/parity/<crate>/`. The JSON Lines files under `raw/` and `fixtures/` are the source of truth; the Markdown files with the same content are rendered from them with `ferrum/docs/parity/tools/render.py`. Schemas: §11.2.
+All in `docs/parity/<crate>/`. The JSON Lines files under `raw/` and `fixtures/` are the source of truth; the Markdown files with the same content are rendered from them with `docs/parity/tools/render.py`. Schemas: §11.2.
 
 ```
-ferrum/docs/parity/<crate>/
+docs/parity/<crate>/
   progress.md              totals, chunks, state, tokens per chunk, open questions
   subagent-card.md         the card given to every subagent (Appendix A, filled in)
   raw/inventory.jsonl      A1: one row per cm6 export and public member, with disposition
@@ -52,7 +52,7 @@ ferrum/docs/parity/<crate>/
   verification.md          the verification pass (§12)
 ```
 
-Workspace-wide, shared by all audits: `ferrum/docs/parity/_cross-crate.md` (register of capabilities between crates) and `ferrum/docs/parity/decisions-evidence.md`.
+Workspace-wide, shared by all audits: `docs/parity/_cross-crate.md` (register of capabilities between crates) and `docs/parity/decisions-evidence.md`.
 
 | Deliverable | Used by |
 |---|---|
@@ -87,7 +87,7 @@ P2–P3 cover only items whose approved disposition is `CORE`, `CONTRACT`, `SURF
 
 ## 5. Inventory and dispositions (P0–P1)
 
-**Inventory (A1).** One row per top-level export reachable from the package's `src/index.ts` (class, interface, type, enum, function, const), per public instance and static member (methods, getters, fields, constructor parameter properties), per enum member, and per field of every non-exported object type that an exported function or method takes as a parameter (config objects such as a `define` spec: their fields carry behavior). `private` and `@internal` members are excluded from the rows but read as helpers. Generate the rows with `ferrum/docs/parity/tools/cm6_inventory.cjs` and the test rows with `ferrum/docs/parity/tools/cm6_tests.cjs` (`ferrum/docs/parity/tools/README.md`); compare with the package README symbol list and report every discrepancy. Declare the totals in `progress.md` before any other work.
+**Inventory (A1).** One row per top-level export reachable from the package's `src/index.ts` (class, interface, type, enum, function, const), per public instance and static member (methods, getters, fields, constructor parameter properties), per enum member, and per field of every non-exported object type that an exported function or method takes as a parameter (config objects such as a `define` spec: their fields carry behavior). `private` and `@internal` members are excluded from the rows but read as helpers. Generate the rows with `docs/parity/tools/cm6_inventory.cjs` and the test rows with `docs/parity/tools/cm6_tests.cjs` (`docs/parity/tools/README.md`); compare with the package README symbol list and report every discrepancy. Declare the totals in `progress.md` before any other work.
 
 **Dispositions** (one per row and per source file; proposals until Gate 1):
 
@@ -140,12 +140,12 @@ For every item other cm6 packages use, grep those packages for the constants and
 The main session builds the harness once, in P0:
 
 ```sh
-python3 ferrum/docs/parity/tools/harness/setup_cm6.py <package> [--npm <extra-package@version> …]
+python3 docs/parity/tools/harness/setup_cm6.py <package> [--npm <extra-package@version> …]
 ```
 
-It creates `/workspace/.harness/<package>/` with the sources of the package and of every `@codemirror/*` package it depends on, their npm dependencies, TypeScript, and a `tsconfig.json` that maps `@codemirror/<name>` to those sources and `@harness/lib` to the shared helpers (`ferrum/docs/parity/tools/harness/oracle-lib.ts`: seeded PRNG, exception capture, Rust-safe encoding, fixture writer). Extra packages (Lezer grammars, `w3c-keyname`) go after `--npm`. Record the versions from `harness.json` in `progress.md`.
+It creates `.harness/<package>/` with the sources of the package and of every `@codemirror/*` package it depends on, their npm dependencies, TypeScript, and a `tsconfig.json` that maps `@codemirror/<name>` to those sources and `@harness/lib` to the shared helpers (`docs/parity/tools/harness/oracle-lib.ts`: seeded PRNG, exception capture, Rust-safe encoding, fixture writer). Extra packages (Lezer grammars, `w3c-keyname`) go after `--npm`. Record the versions from `harness.json` in `progress.md`.
 
-Every subagent uses the same harness and runs its own probes: `tsx --tsconfig /workspace/.harness/<package>/tsconfig.json <probe>.ts`. Each writes only inside its own `oracle/cm6/<chunk>/` and `fixtures/<chunk>.jsonl`, so parallel subagents never conflict and no queue is needed. Subagents do not install packages or create other environments; a missing dependency is reported to the main session, which adds it to the harness.
+Every subagent uses the same harness and runs its own probes: `tsx --tsconfig .harness/<package>/tsconfig.json <probe>.ts`. Each writes only inside its own `oracle/cm6/<chunk>/` and `fixtures/<chunk>.jsonl`, so parallel subagents never conflict and no queue is needed. Subagents do not install packages or create other environments; a missing dependency is reported to the main session, which adds it to the harness.
 
 ---
 
@@ -191,13 +191,13 @@ For each item, list which of these its cm6 implementation relies on, with `file:
 
 Port notes: helpers used, values that change under the D1/D2 decisions (computed from the fixture text), loops and randomness to reproduce.
 
-**Helper specifications.** For every cm6 test helper (for example `CodeMirror6/commands/test/state.ts` `mkState`: `|` for a cursor, `<…>` for a range, `allowMultipleSelections` on), its exact parsing and assertion rules, so the Ferrum helper can mirror it.
+**Helper specifications.** For every cm6 test helper (for example `mirrors/cm6/commands/test/state.ts` `mkState`: `|` for a cursor, `<…>` for a range, `allowMultipleSelections` on), its exact parsing and assertion rules, so the Ferrum helper can mirror it.
 
 **Derived tests.** Every behavior without a cm6 test gets a derived-test specification: behavior id, input and expected value from a fixture.
 
-**Cross-crate.** For every capability an item needs from a lower crate (cite the cm6 call site), check the lower crate's public API or approved specification. If it is absent or differs, the main session opens an entry in `ferrum/docs/parity/_cross-crate.md` owned by the lower crate, with a fixture showing the expected behavior; the dependent items wait for it. Capabilities of this crate that higher cm6 packages use are listed too, for the later audits.
+**Cross-crate.** For every capability an item needs from a lower crate (cite the cm6 call site), check the lower crate's public API or approved specification. If it is absent or differs, the main session opens an entry in `docs/parity/_cross-crate.md` owned by the lower crate, with a fixture showing the expected behavior; the dependent items wait for it. Capabilities of this crate that higher cm6 packages use are listed too, for the later audits.
 
-**Decision evidence.** For each open decision touched, the main session appends to `ferrum/docs/parity/decisions-evidence.md`: items affected, examples (`file:line`, fixture ids), what each option implies.
+**Decision evidence.** For each open decision touched, the main session appends to `docs/parity/decisions-evidence.md`: items affected, examples (`file:line`, fixture ids), what each option implies.
 
 ---
 
@@ -222,7 +222,7 @@ Deliverables follow `rules.md` §8. In addition, for audit deliverables:
 
 1. Every deliverable starts with a reading header: what the file is, the cm6 package version and Ferrum commit its line numbers refer to, the id schemes it uses.
 2. The harness directory appears only in `subagent-card.md` and `progress.md`, which describe the environment. Scripts a reader needs are under `oracle/cm6/`.
-3. Inside a table whose evidence column names a file, a short id refers to that file (`F0042` in a row citing `ferrum/docs/parity/view/fixtures/C3.jsonl`).
+3. Inside a table whose evidence column names a file, a short id refers to that file (`F0042` in a row citing `docs/parity/view/fixtures/C3.jsonl`).
 4. The main session runs the reference checker (`rules.md` §8.7) at the end of each phase.
 
 ### 11.2 Schemas
@@ -331,24 +331,24 @@ Benefits are hypotheses until measured (`rules.md` §4.4): give the measurement 
 
 ## Appendix A. Subagent card (template)
 
-The main session copies this into `ferrum/docs/parity/<crate>/subagent-card.md`, fills in the bracketed parts, and gives each subagent the card plus its chunk assignment. Keep it under about 150 lines.
+The main session copies this into `docs/parity/<crate>/subagent-card.md`, fills in the bracketed parts, and gives each subagent the card plus its chunk assignment. Keep it under about 150 lines.
 
 ```
 # Subagent card: [crate] specification audit
 
 You audit one chunk of cm6 [package] [version] to produce the specification of the new Ferrum crate [crate].
-Audit only: write no Ferrum code; never read ferrum/crates/[crate]/.
-Binding rules: ferrum/docs/fundation/rules.md (loaded through ferrum/AGENTS.md; if it is not in your context, read it first).
+Audit only: write no Ferrum code; never read crates/[crate]/.
+Binding rules: docs/fundation/rules.md (loaded through AGENTS.md; if it is not in your context, read it first).
 This card adds to those rules and never relaxes them; if the two disagree, stop and report.
 
 ## Your chunk
-[chunk id]: sources [CodeMirror6/... files or export ranges]; tests [test files or case ids].
+[chunk id]: sources [mirrors/cm6/... files or export ranges]; tests [test files or case ids].
 Items you own: [inventory ids, with the total]. Approved dispositions: [in raw/inventory.jsonl].
 
 ## Environment (already set up; do not install anything)
-Run probes: tsx --tsconfig /workspace/.harness/[package]/tsconfig.json <file>.ts
+Run probes: tsx --tsconfig .harness/[package]/tsconfig.json <file>.ts
 Import cm6 as "@codemirror/[name]" and the helpers as "@harness/lib" (rng, capture, encode, fixtureWriter).
-Write only inside ferrum/docs/parity/[crate]/oracle/cm6/[chunk]/, fixtures/[chunk].jsonl and your raw rows.
+Write only inside docs/parity/[crate]/oracle/cm6/[chunk]/, fixtures/[chunk].jsonl and your raw rows.
 Missing dependency: report it, do not install it.
 
 ## For every item you own
@@ -372,7 +372,7 @@ with reason and the semantic it pins down), port notes.
 
 ## Output (append each finished item immediately; keep raw/[chunk].progress with done/remaining)
 raw/behaviors.jsonl, raw/tests.jsonl, raw/xc.jsonl rows; schemas: [paste §11.2].
-References as rules.md §8: paths from /workspace/ (CodeMirror6/..., ferrum/...), file:line with the symbol, ids with their file.
+References as rules.md §8: paths from the repository root (mirrors/cm6/..., crates/..., docs/...), file:line with the symbol, ids with their file.
 Facts only: do not decide dispositions, cross-crate status or decisions. No "etc.", one item per row.
 
 ## Final report (short)

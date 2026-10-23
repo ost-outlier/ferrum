@@ -1,8 +1,8 @@
 # Audit scope: `ferrum-view` vs `@codemirror/view` (platform-independent part)
 
-Use with `1-parity-audit.md` (specification audit for a new crate). Audit order: **2 of 4**. The view is rebuilt from cm6: the existing `ferrum/crates/ferrum-view/` is not read, tested or described. One exception, section "Quarry from `ferrum-commands`" below: a few items that the old code placed in `ferrum-commands` but cm6 places in `@codemirror/view`.
+Use with `1-parity-audit.md` (specification audit for a new crate). Audit order: **2 of 4**. The view is rebuilt from cm6: the existing `crates/ferrum-view/` is not read, tested or described. One exception, section "Quarry from `ferrum-commands`" below: a few items that the old code placed in `ferrum-commands` but cm6 places in `@codemirror/view`.
 
-Versions: cm6 `@codemirror/view` 6.43.14 (`CodeMirror6/view/package.json`); Ferrum line numbers at commit `ed70610`.
+Versions: cm6 `@codemirror/view` at commit `d236c7c` (`docs/parity/tools/mirrors.json`: `main` after the 6.43.14 release, while `package.json` still says 6.43.14); Ferrum line numbers at commit `ed70610`.
 
 This is the audit where the purpose filter matters most. cm6's view is ~12,900 lines, most of it DOM. The goal is to separate what a native, headless view model must own (`CORE`), what it must ask a surface for (`CONTRACT`), what surfaces own (`SURFACE`) and what is irrelevant (`DROP`). Read `ferrum-foundation.md` §4 first: it has a preliminary file-by-file disposition, which you must verify per export and may overturn with evidence.
 
@@ -10,12 +10,12 @@ This is the audit where the purpose filter matters most. cm6's view is ~12,900 l
 
 |  | cm6 | Ferrum |
 |---|---|---|
-| Source | `CodeMirror6/view/src/` (all 35 `.ts` files) | none (new crate); quarry: see below |
-| Tests | `CodeMirror6/view/test/`: `test-heightmap.ts`, every `webtest-*.ts` (11 files), helper `tempview.ts` | none |
-| Symbol list | `CodeMirror6/view/src/README.md` | not audited |
-| Dependencies | `@codemirror/state`, `crelt`, `style-mod`, `w3c-keyname` | lower crate: `ferrum-state` (public API and conformance report, `ferrum/docs/parity/state/`) |
+| Source | `mirrors/cm6/view/src/` (all 35 `.ts` files) | none (new crate); quarry: see below |
+| Tests | `mirrors/cm6/view/test/`: `test-heightmap.ts`, every `webtest-*.ts` (11 files), helper `tempview.ts` | none |
+| Symbol list | `mirrors/cm6/view/src/README.md` | not audited |
+| Dependencies | `@codemirror/state`, `crelt`, `style-mod`, `w3c-keyname` | lower crate: `ferrum-state` (public API and conformance report, `docs/parity/state/`) |
 
-Also in scope as **consumers** (read-only, for dispositions, consumer values and A5): which view capabilities `@codemirror/language` and `@codemirror/commands` use (grep their imports from `@codemirror/view` in `CodeMirror6/language/src/` and `CodeMirror6/commands/src/`), and how the surface crate `ferrum/crates/ferrum-view-gpui/` feeds keys and text into the engine (`ferrum/crates/ferrum-view-gpui/src/keymap_bridge.rs`), as evidence for D8 only.
+Also in scope as **consumers** (read-only, for dispositions, consumer values and A5): which view capabilities `@codemirror/language` and `@codemirror/commands` use (grep their imports from `@codemirror/view` in `mirrors/cm6/language/src/` and `mirrors/cm6/commands/src/`), and how the surface crate `crates/ferrum-view-gpui/` feeds keys and text into the engine (`crates/ferrum-view-gpui/src/keymap_bridge.rs`), as evidence for D8 only.
 
 ## Gate 1 is the main early deliverable
 
@@ -43,10 +43,10 @@ The human approves these before phase 2. Phase 2 covers only in-scope, non-`DROP
 
 - **`webtest-*` files (~250 cases).** Each case gets `LOGIC-ONLY`, `NEEDS LAYOUT` or `DOM-ONLY` with a reason. `webtest-draw-decoration.ts` (~97 cases) mostly asserts DOM output, but the decoration *semantics* behind each assertion (ordering, nesting, `inclusive`, block widgets, replaced ranges, line decorations) are core: record which semantic each case pins down. These cases need a browser to produce golden values (`1-parity-audit.md` §6.1).
 - **Heightmap and viewport.** `HeightOracle` estimation, line gaps, viewport margins, the `scaler` for huge documents, and the update path after changes, behavior by behavior. `test-heightmap.ts` runs headless in Node: every case yields fixtures.
-- **Decorations.** `Decoration.mark/widget/replace/line` specs (`inclusive`, `inclusiveStart`, `inclusiveEnd`, `side`, `block`, `attributes`, `class`, `tagName`, `bidiIsolate`), `WidgetType` (`eq`, `updateDOM` as a concept, `estimatedHeight`, `lineBreaks`, `ignoreEvent`, `coordsAt`), point vs mark ordering, `DecorationSet` mapping. Record the side constants (`CodeMirror6/view/src/decoration.ts` `Side`, ±1e8…±6e8, and the −1/+1 adjustments for non-inclusive ends) as consumer values; they are also the values to check `RangeSet` with (next section).
+- **Decorations.** `Decoration.mark/widget/replace/line` specs (`inclusive`, `inclusiveStart`, `inclusiveEnd`, `side`, `block`, `attributes`, `class`, `tagName`, `bidiIsolate`), `WidgetType` (`eq`, `updateDOM` as a concept, `estimatedHeight`, `lineBreaks`, `ignoreEvent`, `coordsAt`), point vs mark ordering, `DecorationSet` mapping. Record the side constants (`mirrors/cm6/view/src/decoration.ts` `Side`, ±1e8…±6e8, and the −1/+1 adjustments for non-inclusive ends) as consumer values; they are also the values to check `RangeSet` with (next section).
 - **`ViewPlugin`/`ViewUpdate`.** Plugin lifecycle (`create`, `update`, `destroy`, `docViewUpdate`), `ViewUpdate` flags (`docChanged`, `selectionSet`, `viewportChanged`, `heightChanged`, `geometryChanged`, `focusChanged`), plugin-provided decorations and their precedence. cm6 detects change by identity in many places (`update.state.facet(x) != update.startState.facet(x)`): list every such site as a hazard (`1-parity-audit.md` §9).
 - **Keymap.** The `keymap` facet, `KeyBinding` (`key`, `mac`/`win`/`linux`, `run`, `shift`, `any`, `scope`, `preventDefault`, `stopPropagation`), key normalization (`w3c-keyname` names, modifier order), `Mod-` resolution per platform, multi-stroke sequences and their timeout, `runScopeHandlers`. Which part needs the surface (raw key events, platform) is a contract question (D8).
-- **View API used by commands.** `moveByChar`, `moveByGroup`, `moveToLineBoundary`, `moveVertically`, `lineBlockAt`, `textDirectionAt`, `bidiSpans`, `atomicRanges`, `scrollIntoView`. List each with its `CodeMirror6/commands/src/commands.ts` call sites: the commands audit (`1d-scope-commands.md` part C) checks them against this crate.
+- **View API used by commands.** `moveByChar`, `moveByGroup`, `moveToLineBoundary`, `moveVertically`, `lineBlockAt`, `textDirectionAt`, `bidiSpans`, `atomicRanges`, `scrollIntoView`. List each with its `mirrors/cm6/commands/src/commands.ts` call sites: the commands audit (`1d-scope-commands.md` part C) checks them against this crate.
 
 ## Capabilities to check in `ferrum-state`
 
@@ -62,20 +62,20 @@ The human approves these before phase 2. Phase 2 covers only in-scope, non-`DROP
 
 ## Quarry from `ferrum-commands`
 
-The old code put view-owned keymap machinery into `ferrum-commands`. These are the only existing Ferrum items this audit evaluates. Use the verdicts of `1d-scope-commands.md` part B (`REUSE`, `ADAPT`, `REWRITE`, `REMOVE`) against the behaviors specified for the corresponding cm6 view items. Write the rows to `ferrum/docs/parity/view/quarry.md`; the commands audit then marks them `MOVE: ferrum-view` and does not evaluate them again.
+The old code put view-owned keymap machinery into `ferrum-commands`. These are the only existing Ferrum items this audit evaluates. Use the verdicts of `1d-scope-commands.md` part B (`REUSE`, `ADAPT`, `REWRITE`, `REMOVE`) against the behaviors specified for the corresponding cm6 view items. Write the rows to `docs/parity/view/quarry.md`; the commands audit then marks them `MOVE: ferrum-view` and does not evaluate them again.
 
 | Ferrum item (`ed70610`) | cm6 counterpart | First look (to be confirmed) |
 |---|---|---|
-| `KeyBinding` (`ferrum/crates/ferrum-commands/src/commands.rs:24`), with `new`/`with_shift` | `KeyBinding` (`CodeMirror6/view/src/keymap.ts`) | Only `key: &'static str`, `run`, `shift`; no `mac`/`win`/`linux`, `any`, `scope`, `preventDefault`, `stopPropagation`. `run` is the old `StateCommand` (`fn(&EditorState) -> Option<TransactionSpec>`), so it cannot receive the view (D5). |
-| `KEYMAP` facet (`ferrum/crates/ferrum-commands/src/commands.rs:51`) | `keymap` facet (`CodeMirror6/view/src/keymap.ts`) | Concatenates inputs; no precedence handling beyond facet order, no compiled per-scope map. |
-| `dispatch_key` (`ferrum/crates/ferrum-commands/src/commands.rs:55`) | `runScopeHandlers` and the keydown handling in `CodeMirror6/view/src/keymap.ts` | Exact string comparison of `binding.key`; no key normalization, no `Mod-` resolution per platform, no multi-stroke, no fallthrough rules beyond "first command returning `Some`". |
-| `insert_text` (`ferrum/crates/ferrum-commands/src/commands.rs:1431`) | default text input in `CodeMirror6/view/src/input.ts` (`applyDOMChange`/`inputHandler` path, user event `input.type`) | `change_by_range` replacing each range; no user event, no `inputHandler` facet, cursor offset in `char`s. |
-| key-name bridge (`ferrum/crates/ferrum-view-gpui/src/keymap_bridge.rs`, surface crate, read-only) | `w3c-keyname` key names used by `CodeMirror6/view/src/keymap.ts` | Evidence for D8 (who normalizes key names: surface or core); not a quarry item. |
+| `KeyBinding` (`crates/ferrum-commands/src/commands.rs:24`), with `new`/`with_shift` | `KeyBinding` (`mirrors/cm6/view/src/keymap.ts`) | Only `key: &'static str`, `run`, `shift`; no `mac`/`win`/`linux`, `any`, `scope`, `preventDefault`, `stopPropagation`. `run` is the old `StateCommand` (`fn(&EditorState) -> Option<TransactionSpec>`), so it cannot receive the view (D5). |
+| `KEYMAP` facet (`crates/ferrum-commands/src/commands.rs:51`) | `keymap` facet (`mirrors/cm6/view/src/keymap.ts`) | Concatenates inputs; no precedence handling beyond facet order, no compiled per-scope map. |
+| `dispatch_key` (`crates/ferrum-commands/src/commands.rs:55`) | `runScopeHandlers` and the keydown handling in `mirrors/cm6/view/src/keymap.ts` | Exact string comparison of `binding.key`; no key normalization, no `Mod-` resolution per platform, no multi-stroke, no fallthrough rules beyond "first command returning `Some`". |
+| `insert_text` (`crates/ferrum-commands/src/commands.rs:1431`) | default text input in `mirrors/cm6/view/src/input.ts` (`applyDOMChange`/`inputHandler` path, user event `input.type`) | `change_by_range` replacing each range; no user event, no `inputHandler` facet, cursor offset in `char`s. |
+| key-name bridge (`crates/ferrum-view-gpui/src/keymap_bridge.rs`, surface crate, read-only) | `w3c-keyname` key names used by `mirrors/cm6/view/src/keymap.ts` | Evidence for D8 (who normalizes key names: surface or core); not a quarry item. |
 
 The keymap *contents* (`standard_keymap`, `default_keymap`, `history_keymap`) are cm6 `@codemirror/commands` items and stay in the commands audit.
 
 ## Calibration notes (not a work list; may contain errors)
 
-- `CodeMirror6/view/src/editorview.ts` is the largest file; split it by export ranges declared in `ferrum/docs/parity/view/progress.md`.
-- `CodeMirror6/view/test/test-heightmap.ts` has 24 cases and is the only Node-runnable test file; all other cases are `webtest-*`.
+- `mirrors/cm6/view/src/editorview.ts` is the largest file; split it by export ranges declared in `docs/parity/view/progress.md`.
+- `mirrors/cm6/view/test/test-heightmap.ts` has 24 cases and is the only Node-runnable test file; all other cases are `webtest-*`.
 - cm6 keymap handling depends on `w3c-keyname` (an npm dependency, not in the mirror); install it in the harness to read its name table.

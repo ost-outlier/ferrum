@@ -1,4 +1,4 @@
-// A1 inventory of a cm6 package's public API, as JSON Lines (ferrum/docs/fundation/1-parity-audit.md §5).
+// A1 inventory of a cm6 package's public API, as JSON Lines (docs/fundation/1-parity-audit.md §5).
 //   node cm6_inventory.cjs --harness <harness dir> --package <name> --prefix <crate>.cm6 > inventory.jsonl
 // Rows: every name re-exported by src/index.ts; every public (non-private, non-@internal) member of
 // exported classes, interfaces, enums and object types (static members as X^m, constructor parameter
@@ -15,7 +15,7 @@ const flags = n => ts.getCombinedModifierFlags(n);
 const hidden = n => (flags(n) & (ts.ModifierFlags.Private | ts.ModifierFlags.Protected)) || (n.name && ts.isPrivateIdentifier(n.name));
 const isStatic = n => !!(flags(n) & ts.ModifierFlags.Static);
 const out = [], seen = new Set();
-const add = (item, kind, s, n) => { if (seen.has(item)) return; seen.add(item); out.push({item, kind, file: `CodeMirror6/${pkg}/src/${s.fileName}`, line: line(s, n)}); };
+const add = (item, kind, s, n) => { if (seen.has(item)) return; seen.add(item); out.push({item, kind, file: `mirrors/cm6/${pkg}/src/${s.fileName}`, line: line(s, n)}); };
 function findDecl(s, name) { for (const st of s.statements) { if (st.name && st.name.text === name) return st; if (ts.isVariableStatement(st)) for (const d of st.declarationList.declarations) if (d.name.text === name) return d; } }
 const exported = [];
 sf["index.ts"].statements.forEach(st => { if (ts.isExportDeclaration(st) && st.exportClause) { const mod = st.moduleSpecifier.text.replace("./", "") + ".ts"; st.exportClause.elements.forEach(e => exported.push([(e.propertyName || e.name).text, e.name.text, mod])); } });
@@ -41,7 +41,7 @@ function members(s, owner, list) {
 }
 for (const [name, alias, file] of exported) {
   const s = sf[file], d = findDecl(s, name);
-  if (!d) { out.push({item: alias, kind: "NOT FOUND", file: `CodeMirror6/${pkg}/src/${file}`, line: 0}); continue; }
+  if (!d) { out.push({item: alias, kind: "NOT FOUND", file: `mirrors/cm6/${pkg}/src/${file}`, line: 0}); continue; }
   const kind = ts.isClassDeclaration(d) ? "class" : ts.isInterfaceDeclaration(d) ? "interface" : ts.isTypeAliasDeclaration(d) ? "type" : ts.isEnumDeclaration(d) ? "enum" : ts.isFunctionDeclaration(d) ? "function" : "const";
   add(alias, kind, s, d);
   if (ts.isFunctionDeclaration(d)) noteParams(alias, d);

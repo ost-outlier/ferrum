@@ -1,4 +1,4 @@
-"""Render JSON Lines rows as a Markdown table (ferrum/docs/fundation/1-parity-audit.md §11).
+"""Render JSON Lines rows as a Markdown table (docs/fundation/1-parity-audit.md §11).
 
     python3 render.py rows.jsonl --cols id,item,file,line [--title "Inventory"] [--header "> What: ..."] > out.md
 

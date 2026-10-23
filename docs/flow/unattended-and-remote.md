@@ -4,7 +4,7 @@
 
 ## 1. The problem
 
-The maintainer has had to keep a terminal open for about five hours doing nothing, because closing it would stop the subagents working in the background, and the session continued by itself once the usage limit reset (`ferrum/docs/flow/learning_flow.md` FL1). The documentation explains why:
+The maintainer has had to keep a terminal open for about five hours doing nothing, because closing it would stop the subagents working in the background, and the session continued by itself once the usage limit reset (`docs/flow/learning_flow.md` FL1). The documentation explains why:
 
 - An **interactive** session signed in with a claude.ai subscription waits for the limit to reset and then continues the task on its own (on by default since v2.1.234; setting `autoContinueAtUsageLimit`). The session must stay open. Exiting ends the wait, and it does not restart on resume. After a sleep of more than about 30 minutes it asks for Enter instead. It re-arms at most twice in a row, and does not wait for a reset more than 24 hours away.
 - **Background sessions** (`claude agents`, `claude --bg`) and **`-p` runs** never wait: the option is not offered.
@@ -26,16 +26,16 @@ The maintainer has had to keep a terminal open for about five hours doing nothin
 
 These are requirements found by reading the documents against the repository; none has been tried.
 
-1. **The `/workspace` layout.** Every reference in Ferrum is relative to `/workspace/` and assumes the cm6 mirror at `/workspace/CodeMirror6/` and the harness at `/workspace/.harness/`. A cloud VM clones only the Ferrum repository. A setup script would link the clone as `/workspace/ferrum` (or set `FERRUM_WORKSPACE`; the shared tools also find the root from their own location), clone CodeMirror beside it at the versions the audits record, and run `ferrum/docs/parity/tools/harness/setup_cm6.py` for the package. Setup scripts are cached when they finish in about five minutes.
+1. **Mirrors.** Every reference is relative to the repository root; the cm6 sources are fetched into `mirrors/` by `docs/parity/tools/fetch_mirrors.py`, and the harness is built into `.harness/`, both gitignored. A cloud setup script only runs `python3 docs/parity/tools/fetch_mirrors.py` and `python3 docs/parity/tools/harness/setup_cm6.py <package>`; the network level must allow `code.haverbeke.berlin`. Setup scripts are cached when they finish in about five minutes.
 2. **State pushed.** A cloud session sees only what is pushed. With `rules.md` §7.6 (commit before stopping) the remaining step is pushing the working branch, which today needs the maintainer's permission in the task.
-3. **Toolchain.** Node 22, `tsx`, TypeScript and a Rust toolchain matching `ferrum/Cargo.toml`. Check the cloud environment's installed tools first; add the rest in the setup script.
+3. **Toolchain.** Node 22, `tsx`, TypeScript and a Rust toolchain matching `Cargo.toml`. Check the cloud environment's installed tools first; add the rest in the setup script.
 4. **Network.** The default *Trusted* network level allows package registries; cloning CodeMirror from `https://code.haverbeke.berlin/codemirror` may need a custom allowed domain, or a GitHub mirror.
 5. **Usage.** Cloud and local sessions share the same plan limits. Running more in parallel uses them faster; the briefs' cap of 4 parallel subagents still applies.
 
 ## 4. Recommended order of trials
 
 1. **Now, no setup:** run the orchestrator as an interactive session inside `tmux` (the dev-sandbox image has it), detach, and come back after the reset. This is the documented behavior that already worked with an open terminal, without the open terminal.
-2. **Next:** a scheduled one-off task timed just after a reset, with the resume prompt of `ferrum/docs/flow/workflow-plan.md` §4, once §3 above works in one manual cloud session.
+2. **Next:** a scheduled one-off task timed just after a reset, with the resume prompt of `docs/flow/workflow-plan.md` §4, once §3 above works in one manual cloud session.
 3. **Later:** a Project for a whole crate, if the beta is available on the account.
 
-Record each trial in `ferrum/docs/flow/learning_flow.md`: what was run, what happened at the limit, tokens used, what had to be fixed.
+Record each trial in `docs/flow/learning_flow.md`: what was run, what happened at the limit, tokens used, what had to be fixed.

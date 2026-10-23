@@ -1,0 +1,20 @@
+{
+  "_what": "Read-only source mirrors used by audits and implementation. Fetched into mirrors/ (gitignored) by docs/parity/tools/fetch_mirrors.py. A commit pins every package; documents cite these files as mirrors/cm6/<package>/... at the commits below.",
+  "cm6": {
+    "url": "https://code.haverbeke.berlin/codemirror/{package}",
+    "packages": {
+      "state":           {"commit": "651084c8a322b3a19b2bb3e00eee7d4a61d641af", "ref": "refs/tags/6.7.6",  "version": "6.7.6"},
+      "view":            {"commit": "d236c7ccdfc8a04e6a64bd172eb3a2f3f8cb7e0c", "ref": "refs/heads/main", "version": "6.43.14", "note": "main after the 6.43.14 release (2026-10-17, 'Improve Home/End behavior in bidi text'); package.json still says 6.43.14"},
+      "language":        {"commit": "21a38068286652eceb17d8e02da88cbed52f8263", "ref": "refs/tags/6.13.1", "version": "6.13.1"},
+      "commands":        {"commit": "5d2ddbbf485a7e8b17c69cf58ebaebf8e375036c", "ref": "refs/tags/6.11.1", "version": "6.11.1"},
+      "streamparser":    {"commit": "e8750deb555c08c6b9cea9956daf748c23e3da92", "ref": "refs/heads/main", "version": "6.0.0", "note": "main after the 6.0.0 release"},
+      "lang-markdown":   {"commit": "f90daf6e56a72f1cf8bbe10b07867f535d0ad2e4", "ref": "refs/tags/6.5.2",  "version": "6.5.2"},
+      "lang-javascript": {"commit": "752304c598da12042525d696ec8b8f40972db692", "ref": "refs/heads/main", "version": "6.2.5", "note": "main after the 6.2.5 release"},
+      "legacy-modes":    {"commit": "cee55a6909d5497a48960d19ed7d53ce8e5d59a7", "ref": "refs/tags/6.5.5",  "version": "6.5.5"}
+    }
+  },
+  "optional": {
+    "zed": "Not pinned and not fetched by the script. Only its Apache-2.0 crates may be opened (rules.md §5.3). Place a checkout at mirrors/zed/ when a task needs one.",
+    "markdown-oxide": "Not pinned and not fetched by the script (Apache-2.0). Place a checkout at mirrors/markdown-oxide/ when a task needs one."
+  }
+}

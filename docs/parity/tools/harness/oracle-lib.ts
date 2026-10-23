@@ -1,4 +1,4 @@
-// Shared helpers for cm6 probes and generators (ferrum/docs/fundation/1-parity-audit.md §7–§8).
+// Shared helpers for cm6 probes and generators (docs/fundation/1-parity-audit.md §7–§8).
 // Imported as "@harness/lib" (mapped by setup_cm6.py). Keep it small and stable: every audit uses it.
 import {writeFileSync, appendFileSync} from "node:fs"
 

@@ -1,10 +1,12 @@
-"""Reference checker (ferrum/docs/fundation/1-parity-audit.md §11.1, rule 7).
+"""Reference checker (docs/fundation/1-parity-audit.md §11.1, rule 7).
 
 Checks Markdown files for references an AI reader cannot follow:
   SCRATCH   path under /tmp, a scratchpad or SCR/
-  ROOT      path relative to an unstated root (state/src/..., crates/ferrum-...), or an
-            instruction document outside ferrum/docs/fundation/
-  MISSING   path rooted at /workspace/ (CodeMirror6/..., ferrum/...) that does not exist
+  ROOT      a path in an old or unstated root (/workspace/..., CodeMirror6/..., ferrum/docs/...,
+            state/src/...), or an instruction document outside docs/fundation/
+  MISSING   path relative to the repository root (mirrors/..., crates/..., docs/...) that does not
+            exist; paths under a mirror that is not fetched are skipped and counted once
+            (python3 docs/parity/tools/fetch_mirrors.py)
   LINE      file:line beyond the end of the file
   ID        "`<file>.md` R9"-style evidence id not found in that file
   SECTION   "`<file>.md` §N.M" with no such section in that file: a heading "## N." / "### N.M", or item
@@ -12,20 +14,21 @@ Checks Markdown files for references an AI reader cannot follow:
             earlier on the same line; otherwise, in an instruction document it means that document
             (rules.md §8.5), and elsewhere it is not checked.
 Usage: python3 check_refs.py <file-or-dir>... [--quiet]
-Line numbers in ferrum/crates/ refer to the commit stated in each document's header; run at that commit.
+Line numbers in crates/ refer to the commit stated in each document's header; run at that commit.
 """
-import os, re, sys, pathlib, collections
-# Workspace root, written /workspace/ in the documents (rules.md §8.1): $FERRUM_WORKSPACE, or the directory containing ferrum/.
-W = pathlib.Path(os.environ.get('FERRUM_WORKSPACE') or pathlib.Path(__file__).resolve().parents[4])
-PATH = re.compile(r'(?<![\w/.@-])((?:CodeMirror6|ferrum)/[\w./-]*[\w])(?::L?(\d+))?')
+import re, sys, pathlib, collections
+# Every path in the documents is relative to the repository root (rules.md §8.1).
+W = pathlib.Path(__file__).resolve().parents[3]
+PATH = re.compile(r'(?<![\w/.@-])((?:mirrors|crates|docs|examples|lib|patches)/[\w./-]*[\w])(?::L?(\d+))?')
 SCR = re.compile(r'/tmp/|scratchpad|(?<![\w/])SCR/')
-BARE = re.compile(r'(?<![\w/.@-])(?:(?:state|view|language|commands|streamparser|lang-[a-z]+)/(?:src|test)/|crates/ferrum|docs/(?:parity|fundation)/)')
-OLDCOPY = re.compile(r'/workspace/(?:1-parity-audit|1[a-d]-scope-[\w-]+|2[a-z]?-[\w-]+|3-conformance-audit|ferrum-foundation|rules)\.md')
-QID = re.compile(r'`((?:ferrum|CodeMirror6)/[\w./-]+\.md)`[ #]((?:R|P|S|T|W)[\w-]*\d[\w-]*)')
+BARE = re.compile(r'(?<![\w/.@-])(?:(?:state|view|language|commands|streamparser|lang-[a-z]+)/(?:src|test)/|/workspace\b|CodeMirror6/|ferrum/(?:docs|crates|examples)/)')
+OLDCOPY = re.compile(r'(?<![\w/.@-])(?!docs/fundation/)((?:[\w.-]+/)+)(?:1-parity-audit|1[a-d]-scope-[\w-]+|2[a-z]?-[\w-]+|3-conformance-audit|ferrum-foundation|rules)\.md')
+QID = re.compile(r'`((?:docs|mirrors)/[\w./-]+\.md)`[ #]((?:R|P|S|T|W)[\w-]*\d[\w-]*)')
+MIRRORS_SKIPPED = collections.Counter()
 # Paths that are planned but not yet written; a line may opt out with <!-- refs:ignore --> (for quoted bad examples).
-PLANNED = re.compile(r'ferrum/docs/parity/(?:decisions\.md|state/spec(?:/.*)?|(?!state/|tools/)[\w-]+/.*)$')  # decisions.md and future crate folders
-FUND = W / 'ferrum/docs/fundation'
-SEC = re.compile(r'(?:`?((?:ferrum/)?[\w./-]*[\w-]+\.md)`?\s+)?§\s?(\d+(?:\.\d+)?)(?:\s?[–-]\s?(\d+(?:\.\d+)?))?')
+PLANNED = re.compile(r'docs/parity/(?:decisions\.md|state/spec(?:/.*)?|(?!state/|tools/)[\w-]+/.*)$')  # decisions.md and future crate folders
+FUND = W / 'docs/fundation'
+SEC = re.compile(r'(?:`?([\w./-]*[\w-]+\.md)`?\s+)?§\s?(\d+(?:\.\d+)?)(?:\s?[–-]\s?(\d+(?:\.\d+)?))?')
 # Historical documents describe sections of earlier versions; their bare § are not checked.
 SEC_SKIP = {'LEARNINGS.md', '1a-scope-state.md'}
 sections_cache = {}
@@ -43,7 +46,7 @@ def sections(p):
         sections_cache[p] = keys
     return sections_cache[p]
 def resolve(name):
-    p = W / name if name.startswith('ferrum/') else FUND / pathlib.Path(name).name
+    p = W / name if '/' in name else FUND / name
     return p if p.is_file() else None
 lines_cache = {}
 def nlines(p):
@@ -55,7 +58,8 @@ def check(md, out):
         if line.startswith('```'): in_code = not in_code
         if 'refs:ignore' in line: continue
         for m in SCR.finditer(line): out.append(('SCRATCH', md, i, line[max(0, m.start()-30):m.end()+40]))
-        for m in OLDCOPY.finditer(line): out.append(('ROOT', md, i, m.group(0) + ' (instruction docs live only in ferrum/docs/fundation/)'))
+        for m in OLDCOPY.finditer(line):
+            if 'git show' not in line: out.append(('ROOT', md, i, m.group(0) + ' (instruction docs live only in docs/fundation/)'))
         for m in ([] if in_code else BARE.finditer(line)): out.append(('ROOT', md, i, line[max(0, m.start()-10):m.end()+40]))
         for m in PATH.finditer(line):
             rel, ln = m.group(1), m.group(2)
@@ -63,6 +67,9 @@ def check(md, out):
             if any(c in rel for c in '<>*{}…') or any(c in nxt for c in '<*{…'): continue
             p = W / rel
             if PLANNED.match(rel): continue
+            parts = rel.split('/')
+            if parts[0] == 'mirrors' and not (W / '/'.join(parts[:3])).exists():
+                MIRRORS_SKIPPED['/'.join(parts[:3])] += 1; continue
             if not p.exists():
                 # tolerate generated/runtime paths only when explicitly marked in the line
                 if re.search(r'not archived|does not exist|not yet written|will be|(?i:\bat (?:commit )?[0-9a-f]{7}\b)', line): continue
@@ -95,4 +102,5 @@ c = collections.Counter(k for k, *_ in out)
 if '--quiet' not in sys.argv:
     for k, f, i, s in out: print(f'{k:8} {f}:{i}  {s}')
 print('files', len(files), 'findings', dict(c) if c else 0)
+if MIRRORS_SKIPPED: print('not checked (mirror not fetched; run docs/parity/tools/fetch_mirrors.py):', ', '.join(f'{k} ({v})' for k, v in sorted(MIRRORS_SKIPPED.items())))
 sys.exit(1 if out else 0)

@@ -2,7 +2,7 @@
 
 This is the reference document for anyone (human or AI) working on Ferrum. It explains what Ferrum is, how it relates to CodeMirror 6 (cm6), how the four foundation crates relate to each other, which decisions must be taken before the foundation is rebuilt, and what comes after.
 
-Precedence between documents, and what to do when two disagree, is defined once in `rules.md` §0: approved decisions first, then `rules.md`, with phase briefs adding to it but never relaxing it; a conflict is reported, not resolved by choosing. `ferrum/README.md`, crate READMEs, doc comments and `/workspace/ferrum_strategic_architecture_vision.md` (outside the repository) are **claims**, not facts; the vision document in particular is aspirational and contains exaggerations and errors (listed in section 9).
+Precedence between documents, and what to do when two disagree, is defined once in `rules.md` §0: approved decisions first, then `rules.md`, with phase briefs adding to it but never relaxing it; a conflict is reported, not resolved by choosing. `README.md`, crate READMEs, doc comments and `../ferrum_strategic_architecture_vision.md` (outside the repository) are **claims**, not facts; the vision document in particular is aspirational and contains exaggerations and errors (listed in section 9).
 
 Anything marked *preliminary* below comes from a quick look, not from an audit. The audits decide. The workflow is: specification audit (`1-parity-audit.md` and the scope sheets), implementation (`2-parity-implementation.md`; for `ferrum-state`, `2a-implementation-state.md`), conformance audit (`3-conformance-audit.md`).
 
@@ -80,7 +80,7 @@ The four foundation packages of cm6 depend on each other like this (verified in 
 | language | ~2,700 (+ `@lezer/common`) | 13 | none |
 | commands | ~1,750 | 125 | 57 |
 
-`language` is thinly tested in its own package. Much of its behavior is exercised in `lang-*` packages (`CodeMirror6/lang-javascript/test/test-indent.ts`, `CodeMirror6/lang-markdown/test/test-commands.ts`) and in `commands` tests that load `@lezer/javascript` or `lang-html`.
+`language` is thinly tested in its own package. Much of its behavior is exercised in `lang-*` packages (`mirrors/cm6/lang-javascript/test/test-indent.ts`, `mirrors/cm6/lang-markdown/test/test-commands.ts`) and in `commands` tests that load `@lezer/javascript` or `lang-html`.
 
 ---
 
@@ -162,7 +162,7 @@ cm6 never lays out text; the browser does. In Ferrum:
 
 ## 5. State of the code
 
-- **`ferrum-state`**: audited (`ferrum/docs/parity/state/`); the existing code is structurally different from cm6 in its facet model, transaction pipeline and selection model, and is rebuilt (§7, `2a-implementation-state.md`).
+- **`ferrum-state`**: audited (`docs/parity/state/`); the existing code is structurally different from cm6 in its facet model, transaction pipeline and selection model, and is rebuilt (§7, `2a-implementation-state.md`).
 - **`ferrum-view`, `ferrum-language`**: not audited; rebuilt from their specification audits.
 - **`ferrum-commands`**: not audited; its code is evaluated item by item as a quarry (`1d-scope-commands.md`).
 - **Documentation**: rewritten per crate after its conformance report is approved. Licensing (MIT in the manifests, MIT/Apache-2.0 in the README, no license files, no cm6 notice) is decision D9.
@@ -173,7 +173,7 @@ Audit results and the history of the method: `LEARNINGS.md`.
 
 ## 6. Foundational decisions (before any rebuild)
 
-These decisions shape the whole foundation. Fixing code before taking them risks doing the work twice. The audits collect evidence for them; a human decides and records the result in `ferrum/docs/parity/decisions.md`.
+These decisions shape the whole foundation. Fixing code before taking them risks doing the work twice. The audits collect evidence for them; a human decides and records the result in `docs/parity/decisions.md`.
 
 **D1. Position unit.** What does an integer position mean?
 - UTF-8 bytes: native to Rust strings, `regex`, tree-sitter (which also needs row/column points), `cosmic-text` and GPUI. Requires care never to land inside a code point.
@@ -203,11 +203,11 @@ For ASCII-only tests all three give identical numbers, so the choice mostly affe
 
 ## 7. Approach (decided by the maintainer, 2026-10-21)
 
-Rebuild in place, crate by crate, in dependency order. The existing code is not a base: each crate is specified from cm6, implemented from the specification, and checked by a conformance audit. The one exception is `ferrum-commands`, whose existing code is evaluated item by item as a quarry. Record this in `ferrum/docs/parity/decisions.md` together with D1–D10.
+Rebuild in place, crate by crate, in dependency order. The existing code is not a base: each crate is specified from cm6, implemented from the specification, and checked by a conformance audit. The one exception is `ferrum-commands`, whose existing code is evaluated item by item as a quarry. Record this in `docs/parity/decisions.md` together with D1–D10.
 
 | Crate | Specification | Implementation | Existing code |
 |---|---|---|---|
-| `ferrum-state` | `ferrum/docs/parity/state/spec/`, produced by `2a-implementation-state.md` §1 (Phase 0) | `2a-implementation-state.md` | not a base; may be consulted only for the algorithms the oracle confirmed (`2a` §4) |
+| `ferrum-state` | `docs/parity/state/spec/`, produced by `2a-implementation-state.md` §1 (Phase 0) | `2a-implementation-state.md` | not a base; may be consulted only for the algorithms the oracle confirmed (`2a` §4) |
 | `ferrum-view` | `1-parity-audit.md` + `1b-scope-view.md` | `2-parity-implementation.md` | not read, except the view-owned keymap items in `ferrum-commands` (`1b` quarry) |
 | `ferrum-language` | `1-parity-audit.md` + `1c-scope-language.md` | `2-parity-implementation.md` | not read |
 | `ferrum-commands` | `1d-scope-commands.md` (specification, quarry, feedback) | `2-parity-implementation.md` | quarry: `REUSE`/`ADAPT` code and `KEEP`/`FIX` tests may be kept |

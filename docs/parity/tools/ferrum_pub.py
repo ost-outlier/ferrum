@@ -1,6 +1,6 @@
-# Public items of a Ferrum crate from rustdoc JSON, as JSON Lines (ferrum/docs/fundation/3-conformance-audit.md G1).
+# Public items of a Ferrum crate from rustdoc JSON, as JSON Lines (docs/fundation/3-conformance-audit.md G1).
 #   RUSTC_BOOTSTRAP=1 cargo rustdoc -p <crate> -- -Z unstable-options --output-format json
-#   python3 ferrum_pub.py target/doc/<crate_name>.json <crate dir, e.g. ferrum/crates/ferrum-view> > pub.jsonl
+#   python3 ferrum_pub.py target/doc/<crate_name>.json <crate dir, e.g. crates/ferrum-view> > pub.jsonl
 # Enumerate every public item of a crate from rustdoc JSON (format 61):
 # modules, structs (+pub fields), enums (+variants), traits (+methods), functions,
 # consts, statics, type aliases, inherent impl methods/assoc items, crate-trait impls,
@@ -10,7 +10,7 @@ CRATE = sys.argv[2].rstrip('/')
 d = json.load(open(sys.argv[1])); idx = d['index']; root = idx[str(d['root'])]
 rows = []; seen = set(); impls_by_type = {}
 def sp(it):
-    s = it.get('span'); return f"ferrum/{s['filename']}:{s['begin'][0]}" if s else "?"
+    s = it.get('span'); return f"{s['filename']}:{s['begin'][0]}" if s else "?"
 def tname(t):
     if 'resolved_path' in t: return t['resolved_path']['path']
     if 'generic' in t: return t['generic']

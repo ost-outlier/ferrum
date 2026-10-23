@@ -1,6 +1,6 @@
 # Audit scope: `ferrum-state` vs `@codemirror/state`
 
-> **Status: historical.** This sheet drove the state audit of 2026-10-21 (`ferrum/docs/parity/state/`), under the previous version of `1-parity-audit.md` (`git -C /workspace/ferrum show f63225f:docs/fundation/1-parity-audit.md`). Its cm6 content (scope, chunks, special attention) remains valid and is read once by `2a-implementation-state.md` §1 (Phase 0) to produce the specification. Its Ferrum column and calibration notes describe the old crate (commit `ed70610`), which is not kept: do not use them as a work list. For the rebuild of `ferrum-state`, start from `2a-implementation-state.md`. <!-- refs:ignore: git path syntax -->
+> **Status: historical.** This sheet drove the state audit of 2026-10-21 (`docs/parity/state/`), under the previous version of `1-parity-audit.md` (`git show f63225f:docs/fundation/1-parity-audit.md`). Its cm6 content (scope, chunks, special attention) remains valid and is read once by `2a-implementation-state.md` §1 (Phase 0) to produce the specification. Its Ferrum column and calibration notes describe the old crate (commit `ed70610`), which is not kept: do not use them as a work list. For the rebuild of `ferrum-state`, start from `2a-implementation-state.md`. <!-- refs:ignore: git path syntax -->
 
 Use with `1-parity-audit.md`. Audit order: **1 of 4** (no Ferrum dependencies).
 
@@ -8,9 +8,9 @@ Use with `1-parity-audit.md`. Audit order: **1 of 4** (no Ferrum dependencies).
 
 |  | cm6 | Ferrum |
 |---|---|---|
-| Source | `CodeMirror6/state/src/`: `text.ts`, `change.ts`, `selection.ts`, `state.ts`, `transaction.ts`, `facet.ts`, `extension.ts`, `config.ts`, `rangeset.ts`, `char.ts`, `charcategory.ts`, `column.ts`, `index.ts` | `ferrum/crates/ferrum-state/src/`: `text.rs`, `change.rs`, `selection.rs`, `state.rs`, `transaction.rs`, `facet.rs`, `config.rs`, `rangeset.rs`, `char.rs`, `column.rs`, `lib.rs` |
-| Tests | `CodeMirror6/state/test/`: `test-text.ts`, `test-change.ts`, `test-selection.ts`, `test-state.ts`, `test-facet.ts`, `test-rangeset.ts`, `test-charcategory.ts` | `ferrum/crates/ferrum-state/src/tests/*.rs` and doctests |
-| Symbol list | `CodeMirror6/state/src/README.md` | `ferrum/crates/ferrum-state/src/README.md`, `ferrum/crates/ferrum-state/README.md` |
+| Source | `mirrors/cm6/state/src/`: `text.ts`, `change.ts`, `selection.ts`, `state.ts`, `transaction.ts`, `facet.ts`, `extension.ts`, `config.ts`, `rangeset.ts`, `char.ts`, `charcategory.ts`, `column.ts`, `index.ts` | `crates/ferrum-state/src/`: `text.rs`, `change.rs`, `selection.rs`, `state.rs`, `transaction.rs`, `facet.rs`, `config.rs`, `rangeset.rs`, `char.rs`, `column.rs`, `lib.rs` |
+| Tests | `mirrors/cm6/state/test/`: `test-text.ts`, `test-change.ts`, `test-selection.ts`, `test-state.ts`, `test-facet.ts`, `test-rangeset.ts`, `test-charcategory.ts` | `crates/ferrum-state/src/tests/*.rs` and doctests |
+| Symbol list | `mirrors/cm6/state/src/README.md` | `crates/ferrum-state/src/README.md`, `crates/ferrum-state/README.md` |
 | Dependencies | `@marijn/find-cluster-break` | `ropey`, `smallvec`, `parking_lot`, `thiserror`, `unicode-segmentation` |
 
 Expected disposition: almost everything `CORE`. Dispositions other than `CORE` need a strong reason.
@@ -41,5 +41,5 @@ From a quick look; the audit must find these independently or refute them with e
 
 - A grep found no Ferrum counterpart for `changeFilter`, `transactionExtender`, `languageData`/`languageDataAt`, `phrases`/`phrase`, `toJSON`/`fromJSON`, `wordAt`, `sliceDoc`, `lineBreak`, `isUserEvent`, `appendConfig`, `StateEffectType`, `computeN`.
 - `ropey = "1.6"` is used with default features (`unicode_lines`, `simd`) in the workspace `Cargo.toml`.
-- `Text::line_by_index` (`ferrum/crates/ferrum-state/src/text.rs:105`) converts the whole line to a `String` to strip the separator on each call.
+- `Text::line_by_index` (`crates/ferrum-state/src/text.rs:105`) converts the whole line to a `String` to strip the separator on each call.
 - `EditorState::create` returns `Arc<EditorState>`; check where `Arc` changes observable behavior (identity comparisons that cm6 relies on, such as `state.field(f) === prevState.field(f)` for change detection).

@@ -17,8 +17,8 @@ The phase briefs already say *what* each phase produces and which work is main-s
 | Role | Runs as | Reads | Writes | Never |
 |---|---|---|---|---|
 | Maintainer | human | gate summaries, `human-decisions.md`, `progress.md`, diffs | `decisions.md`, gate approvals, merges, pushes | — |
-| Orchestrator (main session) | interactive or background Claude Code session in `/workspace/ferrum` | brief, `progress.md`, reports, JSONL summaries | `progress.md`, synthesis deliverables, cards, skeletons, gate summaries | decides a gate; reads sources a subagent owns |
-| Chunk auditor | subagent (`ferrum-spec-chunk`, `ferrum/docs/flow/agents.md`) | its card, its cm6 sources and tests | raw rows, fixtures, probes of its chunk | decides dispositions |
+| Orchestrator (main session) | interactive or background Claude Code session at the repository root | brief, `progress.md`, reports, JSONL summaries | `progress.md`, synthesis deliverables, cards, skeletons, gate summaries | decides a gate; reads sources a subagent owns |
+| Chunk auditor | subagent (`ferrum-spec-chunk`, `docs/flow/agents.md`) | its card, its cm6 sources and tests | raw rows, fixtures, probes of its chunk | decides dispositions |
 | Verifier | subagent, fresh | card, deliverables, sample | `verification.md` rows | wrote any row it checks |
 | Test writer | subagent (`ferrum-test-writer`) | test card, module rows of the specification, skeleton | test files of one module | reads the implementation |
 | Implementer | subagent (`ferrum-implementer`) or the orchestrator | implementation card, cm6 sources, module specification | the module's source files, `implementation.md` rows | edits a test file |
@@ -45,11 +45,11 @@ Between stages the session may end. The next one starts from `progress.md`, whic
 2. Commit (`rules.md` §7.6). For unattended runs, push the working branch so a cloud session or the maintainer can see it (allowed only when the task says so).
 3. Final message: what was committed (commit ids), what was left uncommitted and why, what the maintainer must decide, and the exact prompt that resumes the work.
 
-The resume prompt is always of the form: *"Continue `<crate>` at the stage recorded in `ferrum/docs/parity/<crate>/progress.md`."* No other context should be needed; if it is, that is a defect of `progress.md`.
+The resume prompt is always of the form: *"Continue `<crate>` at the stage recorded in `docs/parity/<crate>/progress.md`."* No other context should be needed; if it is, that is a defect of `progress.md`.
 
 ## 5. Open questions for the maintainer
 
 - Branch names and whether module branches are merged one by one or as a stack.
 - Whether agents may push working branches without asking during unattended runs (needed for cloud sessions to see local work).
 - Which role, if any, runs on a cheaper model (`model:` in the agent definitions): chunk auditors and test writers are the largest volume.
-- Whether the orchestrator of a long phase runs locally in `tmux`, as a background session, or in the cloud (`ferrum/docs/flow/unattended-and-remote.md`).
+- Whether the orchestrator of a long phase runs locally in `tmux`, as a background session, or in the cloud (`docs/flow/unattended-and-remote.md`).
