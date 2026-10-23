@@ -1,0 +1,13 @@
+# Workflow lab: learnings
+
+> What: what running (or planning) the workflow taught, kept apart from `LEARNINGS.md` while this folder is a lab. Versions: entries are dated. Ids: `FL<n>`.
+
+Each entry states its basis, with the same meaning as in `LEARNINGS.md`: `evidence` (observed in a real run, with where), `docs` (official documentation of the tool, with the page and the date read), `analysis` (reasoning not yet confirmed by a run, with what would confirm it). When a lab piece is adopted into the instruction documents, its entries are copied to `LEARNINGS.md` and marked here as moved.
+
+| Id | Date | Basis | Observation | Consequence |
+|---|---|---|---|---|
+| FL1 | reported 2026-10-23 | evidence (maintainer's report, more than once) | The maintainer kept the terminal open for about five hours without input, so that background subagents were not lost and the session went on by itself once the usage limit reset; leaving would have needed an alarm to come back at the right time. | Motivates `ferrum/docs/flow/unattended-and-remote.md`. |
+| FL2 | 2026-10-23 | docs (`https://code.claude.com/docs/en/interactive-mode`, read 2026-10-23) | Automatic continuation after a usage-limit reset exists only in an open interactive session; background sessions and `-p` runs do not wait; a background subagent cut off by a limit is marked failed with its last output kept, and can be resumed. | The open terminal of FL1 was required by the tool, not by the workflow. Trial 1 (`tmux`) keeps the behavior without the human. |
+| FL3 | 2026-10-23 | docs (`https://code.claude.com/docs/en/claude-projects`, `https://code.claude.com/docs/en/routines`, read 2026-10-23) | Project threads keep retrying through a limit and continue at the reset; scheduled-task runs do not, but can be timed. | Two cloud routes to try once the `/workspace` layout can be rebuilt in a VM. |
+| FL4 | 2026-10-23 | analysis | Every cloud route depends on Ferrum's references assuming `/workspace/` with the cm6 mirror beside the repository; a cloud VM has only the repository. | A setup script is the first cloud prerequisite (`ferrum/docs/flow/unattended-and-remote.md` §3). To confirm in one manual `claude --cloud` session. |
+| FL5 | 2026-10-23 | analysis | "Never edit tests" in the implementation role is a request in prose; a `PreToolUse` hook in the implementer's definition would enforce it. | Sketch in `ferrum/docs/flow/agents.md` §2; to confirm that the hook fires inside a subagent and blocks only test files. |
