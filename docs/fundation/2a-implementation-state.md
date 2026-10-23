@@ -27,7 +27,7 @@ Steps:
 
 1. **Harness and inventory** (main session): `setup_cm6.py state`; regenerate `spec/raw/inventory.jsonl` and `spec/raw/tests.jsonl` with the inventory tools (`ferrum/docs/parity/tools/README.md`). The tools produce the same 264 inventory ids as the old audit (only the labels of the 17 config-object fields differ) and the same 172 test ids; copy the dispositions onto them.
 2. **Behaviors** (subagents): for each item, start from the old behavior list, re-read the cm6 source and every helper, and correct or extend the list (the old list is a starting point, not a verified specification). Keep existing ids; new behaviors get the next free number. Add `deps`, `hazards`, `consumer_values` and `cost` per `1-parity-audit.md` §6 and §9.
-3. **Fixtures and generators** (subagents): fixtures for every behavior (§6.2); generators covering the shape checklist (§8). For this crate the checklist entries that matter most are equal and duplicate ranges, the same extension object reused, decoration side values ±1e8…±6e8 and their ±1 adjustments, astral characters, CRLF and U+2028.
+3. **Fixtures and generators** (subagents): fixtures for every behavior (`1-parity-audit.md` §6.2); generators covering the shape checklist (`1-parity-audit.md` §8). For this crate the checklist entries that matter most are equal and duplicate ranges, the same extension object reused, decoration side values ±1e8…±6e8 and their ±1 adjustments, astral characters, CRLF and U+2028.
 4. **Tests** (subagents): every case is `LOGIC-ONLY` (`@codemirror/state` has no `webtest-*`); record the values that change under D1/D2 and the derived-test list.
 5. **Synthesis** (main session): `hazards.md`, `human-decisions.md` (the questions in §2 below that are still open), `implementation-plan.md` (`1-parity-audit.md` §16, with the obvious decisions as one list), rendering, reference check.
 6. **Verification** (`1-parity-audit.md` §12), then **Gate 2**.
@@ -58,13 +58,13 @@ Rules:
 - `isolateHistory` is not a state item (it belongs to `ferrum-commands`); group and subword motion are not state items (they belong to `ferrum-view` and `ferrum-commands`); character categories come from `EditorState.charCategorizer(at)`, which reads the language's `wordChars`.
 - cm6 `@internal` and non-exported mechanisms are `pub(crate)`.
 - **Workspace while rebuilding** (the maintainer chooses at Gate 2): the other crates compile against the old `ferrum-state` API and will break. Recommended: remove `ferrum-view`, `ferrum-language`, `ferrum-commands`, `ferrum-view-gpui` and the facade `ferrum` from `[workspace] members` in `ferrum/Cargo.toml` until they are rebuilt, so that `cargo test --workspace` and `clippy` stay meaningful. They stay in the tree; the commands quarry runs the old code from a git worktree at commit `ed70610`. Alternatives: keep them compiling with adapters (work thrown away later), or delete them (git history keeps them).
-- The old implementation (`ferrum/crates/ferrum-state/` at commit `ed70610`) is not a base. Its algorithms for `ChangeSet`/`ChangeDesc` (`of` for flat lists, `apply`, `compose`, `map`, `invert`, `mapPos`, `iterChanges`, `iterGaps`, `iterChangedRanges`) and for `changeByRange`/`replaceSelection` matched cm6 on every ASCII oracle case and may be consulted as a reference; the item is still written against the new types, with its tests ported first.
+- The old implementation (`ferrum/crates/ferrum-state/` at commit `ed70610`) is not a base. Its algorithms for `ChangeSet`/`ChangeDesc` (`of` for flat lists, `apply`, `compose`, `map`, `invert`, `mapPos`, `iterChanges`, `iterGaps`, `iterChangedRanges`) and for `changeByRange`/`replaceSelection` matched cm6 on every ASCII oracle case and may be consulted by the implementer (`2-parity-implementation.md` §4, step 3) as a reference; the item is still written against the new types, and its tests come from step 2 like every other test. The test subagent never reads the old code.
 
 ---
 
 ## 3. Behaviors that need particular care
 
-The old implementation got each of these wrong. Each needs a test that would have caught it; the fixtures of Phase 0 give the expected values.
+The old implementation got each of these wrong. Each needs a test that would have caught it; the fixtures of Phase 0 give the expected values. The test card of each module (`2-parity-implementation.md` Appendix A) lists the bullets of that module.
 
 **Text**
 - Lines are split exactly as D2 decides; no position falls inside a line break; edits and slices never merge or split a break.
@@ -107,6 +107,6 @@ The old implementation got each of these wrong. Each needs a test that would hav
 
 ## 4. Order and hand-off
 
-Order: `text` (D1/D2 types first), `change`, `selection` with `char`/`charcategory`/`column`, `rangeset`, `facet`/`config`/`extension`, `state`/`transaction`. Inside each module, cm6 source order. Port all 172 cm6 cases and the derived tests; replay every fixture and run every generator before hand-off.
+Modules for the workflow of `2-parity-implementation.md` §4, in this order: `text` (D1/D2 types first), `change`, `selection` with `char`/`charcategory`/`column`, `rangeset`, `facet`/`config`/`extension`, `state`/`transaction`. Inside each module, cm6 source order. Port all 172 cm6 cases and the derived tests; replay every fixture and run every generator before hand-off.
 
 Hand-off as in `2-parity-implementation.md` §7, then `3-conformance-audit.md` with `ferrum/docs/parity/state/spec/` as the specification. After the conformance report is approved: rewrite `ferrum/crates/ferrum-state/README.md` and `ferrum/crates/ferrum-state/src/README.md`, and close in `ferrum/docs/parity/_cross-crate.md` every entry owned by `ferrum-state` that the crate now provides (citing item and test).

@@ -35,7 +35,7 @@ The `@lezer/*` packages are not in the local mirror: install them in the harness
 
 ## Special attention
 
-- **Parse scheduling.** cm6 parses incrementally with a time budget, viewport first, continuing in the background (`ParseWorker`). Record every timing, budget and viewport behavior: they matter for large documents regardless of parser. Time-budget behavior is a hazard (`Date.now()`, `1-parity-audit.md` §9) and a native opportunity (parsing off the main thread changes observable behavior: list it as such in the sketch, §17.3).
+- **Parse scheduling.** cm6 parses incrementally with a time budget, viewport first, continuing in the background (`ParseWorker`). Record every timing, budget and viewport behavior: they matter for large documents regardless of parser. Time-budget behavior is a hazard (`Date.now()`, `1-parity-audit.md` §9) and a native opportunity (parsing off the main thread changes observable behavior: list it as such in the sketch, `1-parity-audit.md` §16.3).
 - **Indentation.** `getIndentation` resolution order (`indentService` first, then syntax), `IndentContext` options (`overrideIndentation`, `simulateBreak`, `simulateDoubleBreak`), `TreeIndentContext` (`baseIndent`, `baseIndentFor`, `continue`, `textAfter`), `delimitedIndent`/`continuedIndent`/`flatIndent`, `indentOnInput` (a `transactionFilter` returning `[tr, {changes, sequential: true}]`, which needs the state's full transaction pipeline), `indentUnit` validation (cm6 throws on invalid configuration: an error-contract question).
 - **Folding.** `foldService`, `foldNodeProp`, `foldInside`, `foldable`, `foldState` mapping through changes (fold decorations use non-inclusive sides: consumer values for `RangeSet.map`), `foldEffect`/`unfoldEffect`, fold commands and keymap, `codeFolding` config, placeholder widget, `foldGutter` (model in core, drawing in surface).
 - **Bracket matching.** `matchBrackets` with and without a tree, `bracketMatching` config, `bracketMatchingHandle`; it iterates the document with `iterRange`.
@@ -45,7 +45,7 @@ The `@lezer/*` packages are not in the local mirror: install them in the harness
 
 ## Capabilities to check in the lower crates
 
-`@codemirror/language` uses these state capabilities. For each, check the rebuilt `ferrum-state` public API (§10 of the brief) and record the result in `raw/xc.jsonl`; a missing or different one becomes a register entry against `ferrum-state`. (Register ids, where one already exists, in parentheses.)
+`@codemirror/language` uses these state capabilities. For each, check the rebuilt `ferrum-state` public API (`1-parity-audit.md` §10) and record the result in `raw/xc.jsonl`; a missing or different one becomes a register entry against `ferrum-state`. (Register ids, where one already exists, in parentheses.)
 
 - `Text` iteration: `iter`, `iterRange`, `iterLines` (XC-004); `ChangeDesc.iterChangedRanges` (XC-008).
 - `RangeSet.map` with the sides of fold decorations passed through without truncation (XC-010); `RangeSet.update` with `filter`/`filterFrom`/`filterTo`, `sort` and ordering errors (XC-018).

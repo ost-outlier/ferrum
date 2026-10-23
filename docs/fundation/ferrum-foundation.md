@@ -2,12 +2,7 @@
 
 This is the reference document for anyone (human or AI) working on Ferrum. It explains what Ferrum is, how it relates to CodeMirror 6 (cm6), how the four foundation crates relate to each other, which decisions must be taken before the foundation is rebuilt, and what comes after.
 
-Precedence when documents disagree:
-
-1. `rules.md`: binding working rules.
-2. This document: purpose, scope and architecture.
-3. Approved audit outputs in `ferrum/docs/parity/` and approved decisions in `ferrum/docs/parity/decisions.md`: facts about the code and decisions already taken.
-4. `ferrum/README.md`, crate READMEs, doc comments, `/workspace/ferrum_strategic_architecture_vision.md` (outside the repository): **claims**, not facts. The vision document in particular is aspirational and contains exaggerations and errors (listed in section 9).
+Precedence between documents, and what to do when two disagree, is defined once in `rules.md` §0: approved decisions first, then `rules.md`, with phase briefs adding to it but never relaxing it; a conflict is reported, not resolved by choosing. `ferrum/README.md`, crate READMEs, doc comments and `/workspace/ferrum_strategic_architecture_vision.md` (outside the repository) are **claims**, not facts; the vision document in particular is aspirational and contains exaggerations and errors (listed in section 9).
 
 Anything marked *preliminary* below comes from a quick look, not from an audit. The audits decide. The workflow is: specification audit (`1-parity-audit.md` and the scope sheets), implementation (`2-parity-implementation.md`; for `ferrum-state`, `2a-implementation-state.md`), conformance audit (`3-conformance-audit.md`).
 

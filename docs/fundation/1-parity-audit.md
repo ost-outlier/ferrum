@@ -14,7 +14,7 @@ Paths are relative to `/workspace/` (`CodeMirror6/…` is the cm6 mirror, `ferru
 
 - **Decisions.** D1 (position unit) and D2 (line breaks) are recorded in `ferrum/docs/parity/decisions.md` before phase P2. Crate-specific decisions (D3 for language, D4/D7/D8 for view) may still be open: the audit collects their evidence and states the dependent behaviors without assuming an answer.
 - **Lower crates.** For each Ferrum crate the audited crate depends on: its approved conformance report (`ferrum/docs/parity/<crate>/conformance.md`) and its public API. If a lower crate is not implemented yet, use its approved specification (`inventory`, `dispositions`, `behaviors`).
-- **Read before starting (main session):** `ferrum-foundation.md`, `rules.md`, this brief, the scope sheet, `ferrum/docs/parity/decisions.md`, `ferrum/docs/parity/_cross-crate.md`, the crate's `progress.md` if it exists. Subagents read only their card (Appendix A).
+- **Read before starting (main session):** this brief, the scope sheet, `ferrum/docs/parity/decisions.md`, `ferrum/docs/parity/_cross-crate.md`, the crate's `progress.md` if it exists (it names the current phase and the sections to re-read after a compaction, `rules.md` §7.2). Subagents read only their card (Appendix A); `rules.md` reaches them through `ferrum/AGENTS.md`.
 
 ---
 
@@ -218,14 +218,12 @@ Quality comes first: the steps that produce evidence (reading every helper, one 
 
 ### 11.1 References
 
-Deliverables are read later by agents with none of this session's context. A reference is valid only if such a reader can open the target with the reference alone.
+Deliverables follow `rules.md` §8. In addition, for audit deliverables:
 
-1. Every path is relative to `/workspace/`: `CodeMirror6/state/src/text.ts:38`, `ferrum/crates/ferrum-view/src/lib.rs:12`, `ferrum/docs/parity/view/behaviors.md`. No path relative to an unstated directory, no `./`. Instruction documents may be named alone (`rules.md`): they all live in `ferrum/docs/fundation/`.
-2. Nothing under `/tmp`, a scratchpad or a home directory appears in a deliverable; the harness directory appears only in `subagent-card.md` and `progress.md`, which describe the environment. Scripts a reader needs are under `oracle/cm6/`. <!-- refs:ignore -->
-3. A code reference carries the symbol: `` `CodeMirror6/view/src/cursor.ts:102` (`byGroup`) ``. Each deliverable states once, in its reading header, the cm6 package version and the Ferrum commit its line numbers refer to.
-4. An id names its file: `ferrum/docs/parity/view/fixtures/C3.jsonl#F0042`, `ferrum/docs/parity/view/behaviors.md#view.moveVertically.B3`, `ferrum/docs/parity/_cross-crate.md#XC-041`. Short forms are allowed inside the defining file and in rows whose evidence column names that file. New id schemes are added to `ferrum/docs/parity/README.md` before use.
-5. Every deliverable starts with a reading header: what the file is, the versions, the id schemes it uses.
-6. At the end of each phase the main session runs `python3 ferrum/docs/parity/tools/check_refs.py ferrum/docs/parity ferrum/docs/fundation --quiet` (one line of output) and fixes what it reports.
+1. Every deliverable starts with a reading header: what the file is, the cm6 package version and Ferrum commit its line numbers refer to, the id schemes it uses.
+2. The harness directory appears only in `subagent-card.md` and `progress.md`, which describe the environment. Scripts a reader needs are under `oracle/cm6/`.
+3. Inside a table whose evidence column names a file, a short id refers to that file (`F0042` in a row citing `ferrum/docs/parity/view/fixtures/C3.jsonl`).
+4. The main session runs the reference checker (`rules.md` §8.7) at the end of each phase.
 
 ### 11.2 Schemas
 
@@ -340,6 +338,8 @@ The main session copies this into `ferrum/docs/parity/<crate>/subagent-card.md`,
 
 You audit one chunk of cm6 [package] [version] to produce the specification of the new Ferrum crate [crate].
 Audit only: write no Ferrum code; never read ferrum/crates/[crate]/.
+Binding rules: ferrum/docs/fundation/rules.md (loaded through ferrum/AGENTS.md; if it is not in your context, read it first).
+This card adds to those rules and never relaxes them; if the two disagree, stop and report.
 
 ## Your chunk
 [chunk id]: sources [CodeMirror6/... files or export ranges]; tests [test files or case ids].
@@ -372,7 +372,7 @@ with reason and the semantic it pins down), port notes.
 
 ## Output (append each finished item immediately; keep raw/[chunk].progress with done/remaining)
 raw/behaviors.jsonl, raw/tests.jsonl, raw/xc.jsonl rows; schemas: [paste §11.2].
-References: paths from /workspace/ (CodeMirror6/..., ferrum/...), file:line with the symbol, no /tmp paths.
+References as rules.md §8: paths from /workspace/ (CodeMirror6/..., ferrum/...), file:line with the symbol, ids with their file.
 Facts only: do not decide dispositions, cross-crate status or decisions. No "etc.", one item per row.
 
 ## Final report (short)

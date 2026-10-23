@@ -50,7 +50,7 @@ The human approves these before phase 2. Phase 2 covers only in-scope, non-`DROP
 
 ## Capabilities to check in `ferrum-state`
 
-`@codemirror/view` uses these state capabilities. For each, check the rebuilt `ferrum-state` public API (§10 of the brief) and record the result in `raw/xc.jsonl`; a missing or different one becomes a register entry against `ferrum-state`, and the view items that need it wait for it. (Register ids, where one already exists, in parentheses.)
+`@codemirror/view` uses these state capabilities. For each, check the rebuilt `ferrum-state` public API (`1-parity-audit.md` §10) and record the result in `raw/xc.jsonl`; a missing or different one becomes a register entry against `ferrum-state`, and the view items that need it wait for it. (Register ids, where one already exists, in parentheses.)
 
 - `ChangeDesc.touchesRange` (XC-007) and `iterChangedRanges` (XC-008).
 - `RangeSet.map` and `between` with the view's side values (±1e8…±6e8, and the ±1 adjustments for non-inclusive ends) passed through without truncation; sentinels beyond those values (XC-010, XC-011).

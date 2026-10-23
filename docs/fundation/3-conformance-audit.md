@@ -10,7 +10,7 @@ This phase is **audit only**: findings are reported, not fixed. The implementer 
 
 ## 0. What "100%" means
 
-A crate is `CONFORMANT` when **every gate in section 3 passes**. There is no percentage threshold: one unapproved difference makes the crate `NOT CONFORMANT`. A difference is approved only when `decisions.md` (or an approved `human-decisions.md` answer) names it, and the code carries `/// cm6 deviation: <what>, see decisions.md <id>`.
+A crate is `CONFORMANT` when **every gate in section 3 passes**. There is no percentage threshold: one unapproved difference makes the crate `NOT CONFORMANT`. A difference is approved only when `decisions.md` (or an approved `human-decisions.md` answer) names it, and the code carries the deviation qualifier of `rules.md` §3.6.
 
 Item verdicts:
 
@@ -34,6 +34,8 @@ No documentation audit: READMEs and doc comments are not checked, except the `//
 - `decisions.md`, `human-decisions.md` (answered), `_cross-crate.md`.
 - The implemented crate at a recorded commit. Record `cargo --version`, Node version and the cm6 package version.
 
+**Read before starting (main session):** this brief, the inputs above as counts and summaries (subagents read the rows of their module), and the crate's `progress.md`. Subagents read only their card (the template of `1-parity-audit.md` Appendix A, adapted to the gates they check).
+
 Outputs: `ferrum/docs/parity/<crate>/conformance.md` (rendered from `raw/conformance.jsonl`: `id, kind (item|behavior|test|fixture|gate), verdict, evidence, repro`), plus the Ferrum replayers and oracle drivers in `ferrum/docs/parity/<crate>/oracle/ferrum/`.
 
 ---
@@ -42,7 +44,7 @@ Outputs: `ferrum/docs/parity/<crate>/conformance.md` (rendered from `raw/conform
 
 Run every mechanical gate first, for the whole crate; they are cheap and find what reading misses. Then spend reading effort only where they cannot decide (test assertions, behaviors without runnable fixtures, contracts).
 
-Tools (`ferrum/docs/parity/tools/README.md`): `ferrum_pub.py` (public items from rustdoc JSON), `check_refs.py`, `render.py`, the cm6 harness. Write once per crate and keep in `ferrum/docs/parity/<crate>/oracle/ferrum/`: the annotation scanner (`/// cm6:`, `/// cm6 contract:`, `/// cm6 deviation:`, `/// ferrum-only:`, `/// placement:`), the test-name and `// covers:` scanner, the fixture replayer, and a literal extractor for test bodies (cm6 TS and Rust). Use one cargo crate and one target directory for all replayers and drivers; parallel builds wait on cargo's lock, so subagents need no other coordination.
+Tools (`ferrum/docs/parity/tools/README.md`): `ferrum_pub.py` (public items from rustdoc JSON), `check_refs.py`, `render.py`, the cm6 harness. Write once per crate and keep in `ferrum/docs/parity/<crate>/oracle/ferrum/`: the annotation scanner (the mapping and qualifier forms of `rules.md` §3.6), the test-name and `// covers:` scanner, the fixture replayer, and a literal extractor for test bodies (cm6 TS and Rust). Use one cargo crate and one target directory for all replayers and drivers; parallel builds wait on cargo's lock, so subagents need no other coordination.
 
 ---
 
@@ -51,7 +53,7 @@ Tools (`ferrum/docs/parity/tools/README.md`): `ferrum_pub.py` (public items from
 ### G1. Public surface
 
 - Every in-scope inventory item (not `DROP`, not `DEFER`) has exactly one Ferrum counterpart annotated `/// cm6: <name>` (or `/// cm6 contract: <name>`), found by the annotation scanner and confirmed in rustdoc JSON as public.
-- Every public Ferrum item (rustdoc JSON, including re-exports and trait impls with behavior) carries one annotation; `ferrum-only` items reference an approved justification; `placement` items reference an approved decision.
+- Every public Ferrum item (rustdoc JSON, including re-exports and trait impls with behavior) carries exactly one mapping line (`rules.md` §3.6); `ferrum-only` lines and `placement` qualifiers cite an approval id that exists.
 - No public item exposes a cm6 `@internal` mechanism unless approved.
 - `DEFER`/`DROP` items have no counterpart carrying their cm6 name (no "close enough" stand-ins).
 
@@ -60,11 +62,12 @@ Tools (`ferrum/docs/parity/tools/README.md`): `ferrum_pub.py` (public items from
 - Every behavior id has at least one passing Ferrum test that names it in a comment (`// covers: view.moveVertically.B3`). The scanner lists ids with no covering test.
 - Reading (sample, section 4): the covering test really asserts the behavior: the right input class, and an assertion on the observable result the behavior states. A test that merely runs the code, or asserts only part of the result (document but not selection, length but not content), is `WEAKER`.
 - Every derived test listed in the specification exists, marked `// derived from cm6 source: <file:line>`, with the fixture's expected value.
+- Test independence: every test file is unchanged since its step-2 commit (`2-parity-implementation.md` §4), except changes the main session or the maintainer approved and listed in `implementation.md`; check with `git log` on the test files.
 - Recommended: run a mutation tool (for example `cargo-mutants`) on a sample of core functions; a surviving mutant whose change a behavior forbids is a missing or weak test.
 
 ### G3. Ported cm6 tests
 
-- Every cm6 case classified `LOGIC-ONLY`, `NEEDS LAYOUT` or `NEEDS GRAMMAR` has a Ferrum test named `test_cm6_<file>_<nn>_<slug>` (rules.md §3).
+- Every cm6 case classified `LOGIC-ONLY`, `NEEDS LAYOUT` or `NEEDS GRAMMAR` has a Ferrum test named `test_cm6_<file>_<nn>_<slug>` (`rules.md` §3.3).
 - **Mechanical comparison** of each pair: extract the literal inputs and expected values from the cm6 case and from the Ferrum test and diff them. Every difference must be documented next to the assertion with an approved cause (D1 unit translation, D2 separators, D3 grammar); the auditor recomputes translated values from the fixture text instead of trusting the comment.
 - Reading: same scenario and the same assertions: a test named after a cm6 case may assert less, use other inputs, or assert nothing at all.
 - No `#[ignore]`; `#[should_panic]` only where cm6 throws, with the panic documented as the approved error contract.
@@ -101,7 +104,7 @@ For every hazard listed in `hazards.md` for an item, a test exercises it, and th
 
 ### G8. Cost
 
-For every item whose cost class in `behaviors.md` is local or logarithmic, measure Ferrum on inputs of size n, 10n and 100n (release build; document length, line length or set size as relevant) and compare the growth with cm6 run on the same inputs. Growth worse than cm6's class is `NONCONFORMANT`. Also grep for whole-document materialization (`to_string()` on the document, full iteration) in operations cm6 performs locally (rules.md §6.3).
+For every item whose cost class in `behaviors.md` is local or logarithmic, measure Ferrum on inputs of size n, 10n and 100n (release build; document length, line length or set size as relevant) and compare the growth with cm6 run on the same inputs. Growth worse than cm6's class is `NONCONFORMANT`. Also grep for whole-document materialization (`to_string()` on the document, full iteration) in operations cm6 performs locally (`rules.md` §6.3).
 
 ### G9. Rules
 
@@ -129,7 +132,7 @@ For every item whose cost class in `behaviors.md` is local or logarithmic, measu
 
 As in `1-parity-audit.md` §11: main session runs the mechanical gates and writes the report; subagents (at most 4 in parallel, one subagent card) do the reading-based checks per module; each appends findings to `raw/conformance.jsonl` as it goes and lists unchecked ids at the end.
 
-References follow `1-parity-audit.md` §11.1 (one root, no scratch paths, symbol and version with every `file:line`, qualified ids, reading header). Every reproduction in the report names the fixture or the replayer file it comes from, so the implementer can re-run it without this session. The reference checker runs as part of verification.
+References follow `rules.md` §8 and `1-parity-audit.md` §11.1 (reading header). Every reproduction in the report names the fixture or the replayer file it comes from, so the implementer can re-run it without this session. The reference checker runs as part of verification.
 
 ---
 

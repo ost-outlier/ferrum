@@ -1,15 +1,28 @@
 # Ferrum development rules
 
-These rules are binding for all work on Ferrum, by humans and AI agents. They say *how* to work. *What* Ferrum is and why is in `ferrum-foundation.md`; read it first. The phase briefs add phase-specific rules on top of these: specification audit (`1-parity-audit.md` with the scope sheets `1a`–`1d`), implementation (`2-parity-implementation.md`; `2a-implementation-state.md` for `ferrum-state`), conformance audit (`3-conformance-audit.md`).
+These rules are binding for all work on Ferrum, by humans and AI agents, in every phase. They state what must be true of the work and of its result. *What* Ferrum is and why is in `ferrum-foundation.md`. *How* each phase is carried out (order of steps, deliverables, gates, who does what) is in the brief of the phase: specification audit (`1-parity-audit.md` with the scope sheets `1a`–`1d`), implementation (`2-parity-implementation.md`; `2a-implementation-state.md` for `ferrum-state`), conformance audit (`3-conformance-audit.md`).
+
+This file is loaded into every agent session through `ferrum/AGENTS.md`. Keep it short: every line here costs context in every session, including every subagent.
 
 Local mirrors: cm6 in `/workspace/CodeMirror6/` (upstream: `https://code.haverbeke.berlin/codemirror`), Ferrum in `/workspace/ferrum/`, Zed in `/workspace/zed/`, markdown-oxide in `/workspace/markdown-oxide/`.
+
+---
+
+## 0. Precedence and conflicts
+
+1. **Approved decisions** in `ferrum/docs/parity/decisions.md` come first. A decision that contradicts a rule here means the rule must be updated; report it.
+2. **This file** comes next. A phase brief or scope sheet adds requirements for its phase and may be more specific; it never relaxes a rule here.
+3. **The approved specification** of a crate (`ferrum/docs/parity/<crate>/`) overrides anything marked *preliminary* in `ferrum-foundation.md`.
+4. **Claims** (READMEs, doc comments, test names, test counts, `ferrum_strategic_architecture_vision.md`) are never facts (§1.2).
+
+If two instruction documents disagree, or a document disagrees with an approved decision, **stop and report the conflict** (both locations, quoted) to the maintainer. Do not pick one.
 
 ---
 
 ## 1. Sources of truth
 
 1. cm6's source code and tests are the **specification of behavior** for every item whose disposition is `CORE` or `CONTRACT` (`ferrum-foundation.md`, section 2). cm6's READMEs and docs are secondary; when they disagree with the code, the code wins.
-2. Approved decisions in `ferrum/docs/parity/decisions.md` and approved audit outputs in `ferrum/docs/parity/` are facts about Ferrum. Everything else written about Ferrum (READMEs, doc comments, test names, test counts, `ferrum_strategic_architecture_vision.md`) is a claim until verified.
+2. Approved decisions and approved audit outputs in `ferrum/docs/parity/` are facts about Ferrum; the approved specification of a crate is its work list. Everything else written about Ferrum is a claim until verified.
 3. Do not port cm6 code that exists only for the DOM, CSS or browsers. Do not drop behavior a native editor needs just because cm6 implements it with the DOM. When unsure, ask.
 
 ---
@@ -26,47 +39,38 @@ Local mirrors: cm6 in `/workspace/CodeMirror6/` (upstream: `https://code.haverbe
 
 ---
 
-## 3. Parity workflow (test-first)
+## 3. Tests and annotations
 
-Every change to a foundation item follows this cycle:
+The order of work (what to write first, what to run, who writes what) belongs to the phase brief; for implementation it is `2-parity-implementation.md` §4. What no phase may break:
 
-1. **Find the cm6 tests** for the item in `/workspace/CodeMirror6/<package>/test/` (including `webtest-*.ts`). If cm6 has none, derive tests from the cm6 source and mark them `// derived from cm6 source: <file:line>`.
-2. **Port them first**, with identical scenario, expected values and assertions. Name ported tests `test_cm6_<cm6 file>_<nn>_<slug of the it() name>` so the mapping is greppable. Test helpers mirror cm6's: in `CodeMirror6/commands/test/state.ts`, `|` marks a cursor and `<…>` marks a selected range.
-3. **Red.** Run the test (`cargo test -p <crate> <test name>`) and confirm it fails for the expected reason. With new API, add the minimum signature to compile.
-4. **Green.** Implement by following the cm6 algorithm, without shortcuts or approximations.
-5. **Refactor.** Remove duplication, keep it idiomatic, then run `cargo test --workspace` and `cargo clippy --workspace`. Everything passes with zero warnings.
-
-Never change a ported expected value, weaken an assertion or add `#[ignore]` to make a test pass. An expected value may differ from cm6 only for a documented, independently verified cause (for example the position unit chosen in decision D1); write the cause next to the assertion.
-
-Annotate items with their cm6 counterpart so the mapping is greppable:
-
-- `/// cm6: <name>` for a direct counterpart (`/// cm6: EditorState.changeByRange`);
-- `/// cm6 deviation: <what differs and why>` when behavior differs;
-- `/// cm6 contract: <cm6 API it replaces>` for trait methods that replace a DOM or Lezer query;
-- `/// placement: cm6 has this in <package>` when placed differently;
-- `/// ferrum-only: <reason>` when there is no counterpart.
+1. **A ported test is the same test**: same scenario, expected values and assertions as the cm6 test. Never change an expected value, weaken an assertion or add `#[ignore]` to make a test pass; a failing ported test is a finding to report.
+2. An expected value may differ from cm6 only for an approved cause (for example the position unit of decision D1), written next to the assertion.
+3. **Names.** Ported tests are named `test_cm6_<cm6 file>_<nn>_<slug of the it() name>`. A test derived from cm6 source because cm6 has none is marked `// derived from cm6 source: <file:line>`. Every test lists the behavior ids it proves: `// covers: <crate>.<item>.B<n>, …`.
+4. **Helpers** mirror cm6's (`CodeMirror6/commands/test/state.ts`: `|` marks a cursor, `<…>` a selected range) and have tests of their own.
+5. A change to a crate that has an approved specification starts from a failing test derived from that specification, never from the code.
+6. **Annotations.** Every public item of a foundation or feature crate carries exactly one *mapping* line, plus the *qualifier* lines that apply. cm6 names are written exactly as cm6 exports them.
+   - Mapping: `/// cm6: <name>` (direct counterpart: `/// cm6: EditorState.changeByRange`); `/// cm6 contract: <cm6 API it replaces>` (trait methods that replace a DOM or Lezer query); `/// ferrum-only: <reason>, see <approval id>` (no counterpart).
+   - Qualifiers: `/// cm6 deviation: <what differs>, see decisions.md <id>`; `/// placement: cm6 has this in <package>, see decisions.md <id>`.
+   - An approval id names its file (§8.4): a decision in `ferrum/docs/parity/decisions.md`, or an `OBVIOUS-<n>` entry of the crate's `implementation-plan.md`.
 
 ---
 
 ## 4. Honesty and evidence
 
-1. **No claim without evidence.** READMEs and doc comments state only what code and tests prove. No "100%", "1:1" or "parity reached" until the parity matrix says so. Test counts appear only next to matrix numbers.
+1. **No claim without evidence.** READMEs and doc comments state only what code and tests prove. No "100%", "1:1" or "parity reached" unless an approved conformance report (`ferrum/docs/parity/<crate>/conformance.md`) says so. Test counts appear only next to the report's numbers.
 2. **No invented justifications.** If a difference from cm6 has no concrete, verifiable reason, record it as an open question instead of rationalizing it.
 3. **Report faithfully.** If tests fail, say so with the output. If something was skipped or approximated, say so. A partially done item is reported as partial.
 4. **Measured performance only.** Do not state frame rates, latencies or complexities that have not been measured or verified in code.
 
 ---
 
-## 5. Licensing and clean room
+## 5. Licensing
 
-1. **Ferrum's license** is the one recorded in `decisions.md` (decision D9; currently the workspace declares MIT, the GPUI surface Apache-2.0). Every crate declares its license in `Cargo.toml`, and license files exist at the repository root.
-2. **cm6 (MIT).** Porting cm6 creates a derived work of MIT-licensed code. Keep cm6's copyright and permission notice in the repository (for example in a `NOTICE` or `THIRD-PARTY` file), as the MIT license requires.
-3. **Zed has mixed licenses, per crate.** Check the `license` field in each crate's `Cargo.toml` before looking at it.
-   - **GPL/AGPL crates** (for example `editor`, `text`, `rope`, `language`, `multi_buffer`): quarantined. Never copy, translate or paraphrase their code into Ferrum. Use them only for high-level concepts, and do not have them open while writing the corresponding Ferrum code.
-   - **Apache-2.0 crates** (for example `gpui`, `sum_tree`, `collections`, `util`): may be used as dependencies of crates whose license permits it. Prefer depending over copying; copied code must keep Apache-2.0 attribution.
-   - No public Ferrum type exposes a type from a GPL crate.
-4. **markdown-oxide (Apache-2.0).** Same rule as Zed's Apache-2.0 crates.
-5. **New dependencies** must have a license compatible with the crate that adds them. Copyleft dependencies are not allowed in any Ferrum crate.
+1. **Outside code and tests are read or copied only if their license is MIT or Apache-2.0** (or a choice that includes one of them). Check the license (the crate's `Cargo.toml` `license` field, or the repository's license file) before opening anything outside cm6 and Ferrum.
+2. **cm6 (MIT).** Porting cm6 code or tests creates a derived work: keep cm6's copyright and permission notice in the repository (decision D9 says where).
+3. **Zed's GPL/AGPL crates are quarantined** (for example `editor`, `text`, `rope`, `language`, `multi_buffer`): do not open, read, copy, translate or paraphrase them. Zed's license is per crate; every other Zed crate falls under item 1.
+4. **Apache-2.0 code** (for example Zed's `gpui`, `sum_tree`, `collections`, `util`, and markdown-oxide): prefer depending on it over copying; copied code keeps its Apache-2.0 attribution.
+5. **Dependencies.** Foundation and feature crates take no copyleft dependency, direct or transitive; a new direct dependency whose license is not MIT or Apache-2.0 needs the maintainer's approval. Surfaces follow decision D9.
 
 ---
 
@@ -75,19 +79,36 @@ Annotate items with their cm6 counterpart so the mapping is greppable:
 1. **English everywhere in the repository:** code, comments, doc comments, READMEs, commit messages. Conversations with the maintainer can be in Portuguese.
 2. **Positions.** Use the position unit decided in D1 everywhere. Conversions between units go through named functions; never mix units implicitly.
 3. **No hidden whole-document work.** Do not convert the document to a `String` (or iterate all of it) in operations that cm6 performs locally (on a line, a range or a chunk). If an operation must touch the whole document, document why.
-4. **Errors and panics.** Do not `unwrap()`/`expect()` on conditions that valid input can trigger. Recoverable conditions return `Result` or `Option`. Precondition violations that cm6 reports by throwing (for example an out-of-range line number) may panic, like std indexing, if documented under `# Panics`; offer a non-panicking variant where callers need one.
+4. **Errors and panics.** The error contract of each precondition comes from the approved specification and decisions (`contracts.md`, `human-decisions.md`, `decisions.md`), not from the implementer; where they say nothing, ask. Never `unwrap()`/`expect()` on conditions valid input can trigger. A documented panic is listed under `# Panics`.
 5. **Modules:** prefer `src/module.rs` over `src/module/mod.rs`.
 6. **Zero warnings:** `cargo build`, `cargo test` and `cargo clippy` produce no warnings in the workspace.
 7. **Comments explain why**, not what: non-obvious decisions, cm6 correspondence, Unicode and boundary edge cases. No comments that narrate the code.
-8. **Commits:** conventional style (`feat(view): …`, `fix(state): …`), one reviewable item or tightly coupled group per commit.
+8. **Commits:** conventional style (`feat(view): …`, `fix(state): …`, `test(state): …`, `docs(fundation): …`), one reviewable unit per commit: an item, a tightly coupled group, or the tests of one module.
+9. **No API beyond the specification.** Public items exist only if the approved specification, its sketch or a decision lists them.
 
 ---
 
 ## 7. Working sessions (AI agents)
 
-1. Start by reading, in order: `ferrum-foundation.md`, this file, the brief for the current phase, `ferrum/docs/parity/decisions.md`, and the current crate's `progress.md`.
-2. State lives in files, not in the conversation. Instruction documents hold rules only; what an audit taught about the method, and how the documents changed, goes to `LEARNINGS.md` (not required reading to run a phase). Update `progress.md` (done, remaining, totals, open questions) before ending a session.
+1. Before starting, read `ferrum-foundation.md` and everything the current phase brief lists under "Read before starting".
+2. **State lives in files**, not in the conversation. Record the current phase, step and brief section in the crate's `progress.md`, together with done, remaining, totals and open questions; update it before ending a session. After a context compaction or in a new session, re-read the brief sections that `progress.md` names before continuing.
 3. Work in small units with explicit totals ("n of N done"). Never summarize a list with "etc." or "similar to above"; list remaining items explicitly.
 4. Do not take foundational decisions (D1–D10 in `ferrum-foundation.md`) or approve your own dispositions, statuses or exceptions; ask the maintainer.
-5. Subagents may produce inventories, independent per-module work and verification passes. Decisions and synthesis stay in the main session.
-6. Write every reference for a reader with no context of your session: paths relative to `/workspace/` (`CodeMirror6/…`, `ferrum/…`), never scratch or `/tmp` paths, `file:line` together with the symbol name and the version (cm6 package version, Ferrum commit) it refers to, and ids qualified by the file that defines them (instruction documents such as `rules.md` may be named alone: they live in `ferrum/docs/fundation/`). Details: `ferrum/docs/fundation/1-parity-audit.md` §11.1.
+5. Decisions and synthesis stay in the main session. Subagents report facts and do bounded work; each brief says which.
+6. **Commit before you stop.** When a logical change to the repository is complete, commit it without asking, on a working branch (never `main`), so that another session or the maintainer can review it. Do not push unless the task says so. Report what was committed and what was left uncommitted, and why.
+7. Instruction documents hold rules only. What a phase taught about the method goes to `LEARNINGS.md` (not required reading to run a phase), with the basis of each learning.
+8. Experimental workflow material (agents, remote and unattended runs) lives in `ferrum/docs/flow/`, status *lab*: it binds only a session the maintainer starts with it, and never overrides this file or a brief.
+
+---
+
+## 8. References
+
+Deliverables, progress files, doc comments and commit messages are read later by another AI agent that has none of this session's context. That agent finds a target with `grep` and file reads, starting from `/workspace/`. A reference is valid only if such an agent can reach the target from the reference alone.
+
+1. **Paths** are relative to `/workspace/`: `CodeMirror6/state/src/text.ts`, `ferrum/crates/ferrum-view/src/lib.rs`, `ferrum/docs/parity/view/behaviors.md`. Never a path relative to an unstated directory, never `./`. Instruction documents may be named alone (`rules.md`): they live in `ferrum/docs/fundation/`.
+2. **Nothing from the session environment** (`/tmp`, a scratchpad, a home directory) appears in a deliverable. A script a reader needs lives in the repository. <!-- refs:ignore -->
+3. **Symbols, not only lines.** A code reference gives the line, the symbol and the version: `CodeMirror6/view/src/cursor.ts:102` (`byGroup`). Each file states once, in its header, the cm6 package version and the Ferrum commit its line numbers refer to.
+4. **Ids name their file:** `ferrum/docs/parity/view/behaviors.md#view.moveVertically.B3`. A short form is allowed only inside the file that defines the id. New id schemes are added to `ferrum/docs/parity/README.md` before use.
+5. **Sections name their file:** `1-parity-audit.md` §11.1, never a bare `§11.1` outside the file it belongs to.
+6. **Write for grep.** Use identifiers and ids exactly as they appear in the target; never paraphrase a name. Point to a named file, section or id, never to the conversation or to "above" or "as discussed".
+7. At the end of each phase, and before handing off, run `python3 ferrum/docs/parity/tools/check_refs.py ferrum/docs/parity ferrum/docs/fundation --quiet` from `/workspace` and fix what it reports.
