@@ -4,7 +4,7 @@ These rules are binding for all work on Ferrum, by humans and AI agents, in ever
 
 This file is loaded into every agent session through `AGENTS.md`. Keep it short: every line here costs context in every session, including every subagent.
 
-Source mirrors live in `mirrors/` inside the repository, which git ignores: cm6 in `mirrors/cm6/<package>/` (upstream `https://code.haverbeke.berlin/codemirror`), each package at the commit pinned in `docs/parity/tools/mirrors.json`; fetch or check them with `python3 docs/parity/tools/fetch_mirrors.py [--check]`. Zed (`mirrors/zed/`) and markdown-oxide (`mirrors/markdown-oxide/`) are optional and unpinned. A mirror is read-only: never edit it.
+Source mirrors live in `mirrors/` inside the repository, which git ignores: cm6 in `mirrors/cm6/<package>/` (upstream `https://code.haverbeke.berlin/codemirror`), each package at the commit pinned in `docs/parity/tools/mirrors.json`; fetch or check them with `python3 docs/parity/tools/fetch_mirrors.py [--check]`. Zed (`mirrors/zed/`) and markdown-oxide (`mirrors/markdown-oxide/`) are listed but pinned only when a task needs them. Adding or pinning a mirror: `docs/parity/tools/README.md`, section Mirrors. A mirror is read-only: never edit it.
 
 ---
 
@@ -68,7 +68,7 @@ The order of work (what to write first, what to run, who writes what) belongs to
 
 1. **Outside code and tests are read or copied only if their license is MIT or Apache-2.0** (or a choice that includes one of them). Check the license (the crate's `Cargo.toml` `license` field, or the repository's license file) before opening anything outside cm6 and Ferrum.
 2. **cm6 (MIT).** Porting cm6 code or tests creates a derived work: keep cm6's copyright and permission notice in the repository (decision D9 says where).
-3. **Zed's GPL/AGPL crates are quarantined** (for example `editor`, `text`, `rope`, `language`, `multi_buffer`): do not open, read, copy, translate or paraphrase them. Zed's license is per crate; every other Zed crate falls under item 1.
+3. **Zed's GPL/AGPL crates are quarantined** (for example `editor`, `text`, `rope`, `language`, `multi_buffer`): do not open, read, copy, translate or paraphrase them. Zed's license is per crate; every other Zed crate falls under item 1. The Zed mirror fetches only the Apache-2.0 crates listed in its manifest entry and refuses any other; do not add a Zed checkout by other means.
 4. **Apache-2.0 code** (for example Zed's `gpui`, `sum_tree`, `collections`, `util`, and markdown-oxide): prefer depending on it over copying; copied code keeps its Apache-2.0 attribution.
 5. **Dependencies.** Foundation and feature crates take no copyleft dependency, direct or transitive; a new direct dependency whose license is not MIT or Apache-2.0 needs the maintainer's approval. Surfaces follow decision D9.
 

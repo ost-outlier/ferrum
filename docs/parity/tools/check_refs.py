@@ -25,6 +25,11 @@ BARE = re.compile(r'(?<![\w/.@-])(?:(?:state|view|language|commands|streamparser
 OLDCOPY = re.compile(r'(?<![\w/.@-])(?!docs/fundation/)((?:[\w.-]+/)+)(?:1-parity-audit|1[a-d]-scope-[\w-]+|2[a-z]?-[\w-]+|3-conformance-audit|ferrum-foundation|rules)\.md')
 QID = re.compile(r'`((?:docs|mirrors)/[\w./-]+\.md)`[ #]((?:R|P|S|T|W)[\w-]*\d[\w-]*)')
 MIRRORS_SKIPPED = collections.Counter()
+import json
+_M = json.loads((W / 'docs/parity/tools/mirrors.json').read_text())['mirrors']
+def mirror_root(parts):  # mirrors/<repo>/... or mirrors/<set>/<member>/...
+    n = 3 if _M.get(parts[1], {}).get('kind') == 'set' else 2
+    return '/'.join(parts[:n]) if len(parts) >= n else None
 # Paths that are planned but not yet written; a line may opt out with <!-- refs:ignore --> (for quoted bad examples).
 PLANNED = re.compile(r'docs/parity/(?:decisions\.md|state/spec(?:/.*)?|(?!state/|tools/)[\w-]+/.*)$')  # decisions.md and future crate folders
 FUND = W / 'docs/fundation'
@@ -68,8 +73,10 @@ def check(md, out):
             p = W / rel
             if PLANNED.match(rel): continue
             parts = rel.split('/')
-            if parts[0] == 'mirrors' and not (W / '/'.join(parts[:3])).exists():
-                MIRRORS_SKIPPED['/'.join(parts[:3])] += 1; continue
+            if parts[0] == 'mirrors' and len(parts) > 1:
+                root = mirror_root(parts)
+                if root and not (W / root / '.mirror-commit').exists():
+                    MIRRORS_SKIPPED[root] += 1; continue
             if not p.exists():
                 # tolerate generated/runtime paths only when explicitly marked in the line
                 if re.search(r'not archived|does not exist|not yet written|will be|(?i:\bat (?:commit )?[0-9a-f]{7}\b)', line): continue
