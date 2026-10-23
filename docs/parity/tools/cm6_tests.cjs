@@ -4,7 +4,7 @@
 // (expand them by hand: one row per generated case).
 const args = Object.fromEntries(process.argv.slice(2).join(" ").split("--").filter(Boolean).map(s => { const [k, ...v] = s.trim().split(/\s+/); return [k, v]; }));
 const ts = require(args.harness[0] + "/node_modules/typescript"), fs = require("fs"), path = require("path");
-const pkg = args.package[0], dir = `/workspace/CodeMirror6/${pkg}/test`;
+const pkg = args.package[0], root = process.env.FERRUM_WORKSPACE || path.resolve(__dirname, "../../../.."), dir = `${root}/CodeMirror6/${pkg}/test`;
 for (const f of fs.readdirSync(dir).filter(f => /\.ts$/.test(f)).sort()) {
   const s = ts.createSourceFile(f, fs.readFileSync(path.join(dir, f), "utf8"), ts.ScriptTarget.ES2022, true); let n = 0;
   const visit = (node, desc, loop) => {

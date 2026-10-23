@@ -6,6 +6,6 @@ The rules below are binding in every session and every phase. Claude Code loads 
 
 @docs/fundation/rules.md
 
-Before any task, identify its phase and read that phase's brief in `ferrum/docs/fundation/` (specification audit `1-parity-audit.md` with a scope sheet `1a`–`1d`; implementation `2-parity-implementation.md`, `2a-implementation-state.md` for `ferrum-state`; conformance audit `3-conformance-audit.md`). All paths in the documents, including this one, are relative to `/workspace/`, except the import line, which is relative to this file.
+Before any task, identify its phase and read that phase's brief in `ferrum/docs/fundation/` (specification audit `1-parity-audit.md` with a scope sheet `1a`–`1d`; implementation `2-parity-implementation.md`, `2a-implementation-state.md` for `ferrum-state`; conformance audit `3-conformance-audit.md`). All paths in the documents, including this one, are relative to the workspace root, written `/workspace/` (`ferrum/docs/fundation/rules.md` §8.1), except the import line, which is relative to this file.
 
 Start agent sessions with `/workspace/ferrum` as the working directory, so this file loads at startup and again after every context compaction.

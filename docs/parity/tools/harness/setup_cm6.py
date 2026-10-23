@@ -9,12 +9,14 @@ map every @codemirror/<name> import to the copied sources. Probes and generators
 anywhere (normally ferrum/docs/parity/<crate>/oracle/cm6/<chunk>/) and run with
     tsx --tsconfig <DIR>/tsconfig.json <probe>.ts
 Extra npm packages (Lezer grammars, w3c-keyname, ...) go after --npm.
-Default DIR: /workspace/.harness/<package> (outside the repository; never referenced by deliverables).
+Default DIR: <workspace root>/.harness/<package> (outside the repository; never referenced by deliverables).
+The workspace root (written /workspace/ in the documents) is $FERRUM_WORKSPACE, or the directory that contains ferrum/.
 """
 import json, os, shutil, subprocess, sys, argparse
-CM6 = '/workspace/CodeMirror6'
+ROOT = os.environ.get('FERRUM_WORKSPACE') or os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), *['..'] * 5))
+CM6 = f'{ROOT}/CodeMirror6'
 ap = argparse.ArgumentParser(); ap.add_argument('package'); ap.add_argument('--dir'); ap.add_argument('--npm', nargs='*', default=[])
-a = ap.parse_args(); d = a.dir or f'/workspace/.harness/{a.package}'
+a = ap.parse_args(); d = a.dir or f'{ROOT}/.harness/{a.package}'
 def pkgjson(name): return json.load(open(f'{CM6}/{name}/package.json'))
 todo, seen, third = [a.package], set(), {}
 while todo:
@@ -32,7 +34,7 @@ for p in sorted(seen):
     shutil.copytree(f'{CM6}/{p}/src', dst)
     paths[f'@codemirror/{p}'] = [f'{dst}/index.ts']
     paths[pkgjson(p)['name']] = [f'{dst}/index.ts']
-paths['@harness/lib'] = ['/workspace/ferrum/docs/parity/tools/harness/oracle-lib.ts']
+paths['@harness/lib'] = [f'{ROOT}/ferrum/docs/parity/tools/harness/oracle-lib.ts']
 json.dump({'name': f'harness-{a.package}', 'private': True}, open(f'{d}/package.json', 'w'))
 json.dump({'compilerOptions': {'target': 'es2022', 'module': 'esnext', 'moduleResolution': 'bundler', 'baseUrl': d, 'paths': paths, 'skipLibCheck': True}}, open(f'{d}/tsconfig.json', 'w'), indent=1)
 pkgs = [f'{k}@{v}' for k, v in sorted(third.items())] + ['typescript@5.6.3', '@types/node@22'] + a.npm

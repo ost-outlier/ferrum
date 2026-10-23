@@ -14,8 +14,9 @@ Checks Markdown files for references an AI reader cannot follow:
 Usage: python3 check_refs.py <file-or-dir>... [--quiet]
 Line numbers in ferrum/crates/ refer to the commit stated in each document's header; run at that commit.
 """
-import re, sys, pathlib, collections
-W = pathlib.Path('/workspace')
+import os, re, sys, pathlib, collections
+# Workspace root, written /workspace/ in the documents (rules.md §8.1): $FERRUM_WORKSPACE, or the directory containing ferrum/.
+W = pathlib.Path(os.environ.get('FERRUM_WORKSPACE') or pathlib.Path(__file__).resolve().parents[4])
 PATH = re.compile(r'(?<![\w/.@-])((?:CodeMirror6|ferrum)/[\w./-]*[\w])(?::L?(\d+))?')
 SCR = re.compile(r'/tmp/|scratchpad|(?<![\w/])SCR/')
 BARE = re.compile(r'(?<![\w/.@-])(?:(?:state|view|language|commands|streamparser|lang-[a-z]+)/(?:src|test)/|crates/ferrum|docs/(?:parity|fundation)/)')
