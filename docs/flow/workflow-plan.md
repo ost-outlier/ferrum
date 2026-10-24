@@ -39,7 +39,18 @@ The phase briefs already say *what* each phase produces and which work is main-s
 
 Between stages the session may end. The next one starts from `progress.md`, which names the stage, the step, and the brief sections to read (`rules.md` §7.2).
 
-## 4. How a session ends
+## 4. How a session starts on a fresh machine or VM
+
+Everything an agent needs is recreated from the repository, in this order, from the repository root:
+
+1. `python3 docs/parity/tools/fetch_mirrors.py`: the pinned sources the documents cite, into `mirrors/`.
+2. `python3 docs/parity/tools/harness/setup_cm6.py <package>` for the package of the current audit: the cm6 harness, into `.harness/` (needs Node and npm).
+3. `cargo build --workspace` for implementation and conformance stages.
+4. Read `progress.md` of the crate, then the brief sections it names (`rules.md` §7.2).
+
+`mirrors/` and `.harness/` are gitignored caches: deleting them loses nothing that steps 1–2 cannot rebuild. If a step fails (no network to the mirror host, no Node), the session reports it and stops; it does not work around it.
+
+## 5. How a session ends
 
 1. Update `progress.md`: stage, step, done, remaining, open questions, tokens used, the brief sections the next session must read.
 2. Commit (`rules.md` §7.6). For unattended runs, push the working branch so a cloud session or the maintainer can see it (allowed only when the task says so).
@@ -47,7 +58,7 @@ Between stages the session may end. The next one starts from `progress.md`, whic
 
 The resume prompt is always of the form: *"Continue `<crate>` at the stage recorded in `docs/parity/<crate>/progress.md`."* No other context should be needed; if it is, that is a defect of `progress.md`.
 
-## 5. Open questions for the maintainer
+## 6. Open questions for the maintainer
 
 - Branch names and whether module branches are merged one by one or as a stack.
 - Whether agents may push working branches without asking during unattended runs (needed for cloud sessions to see local work).

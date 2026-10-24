@@ -32,7 +32,7 @@ No documentation audit: READMEs and doc comments are not checked, except the `//
 
 - The approved specification in `docs/parity/<crate>/`: `inventory`, `dispositions`, `behaviors`, `contracts`, `tests`, `hazards`, `fixtures/`, `oracle/` (cm6 generators).
 - `decisions.md`, `human-decisions.md` (answered), `_cross-crate.md`.
-- The implemented crate at a recorded commit. Record `cargo --version`, Node version and the cm6 package version.
+- The implemented crate at a recorded commit. Record `cargo --version`, the Node version, and the commit of every mirror the specification cites (`python3 docs/parity/tools/fetch_mirrors.py --check`; they must equal the commits at which the specification was approved).
 
 **Read before starting (main session):** this brief, the inputs above as counts and summaries (subagents read the rows of their module), and the crate's `progress.md`. Subagents read only their card (the template of `1-parity-audit.md` Appendix A, adapted to the gates they check).
 

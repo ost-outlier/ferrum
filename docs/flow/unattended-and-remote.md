@@ -35,7 +35,7 @@ These are requirements found by reading the documents against the repository; no
 ## 4. Recommended order of trials
 
 1. **Now, no setup:** run the orchestrator as an interactive session inside `tmux` (the dev-sandbox image has it), detach, and come back after the reset. This is the documented behavior that already worked with an open terminal, without the open terminal.
-2. **Next:** a scheduled one-off task timed just after a reset, with the resume prompt of `docs/flow/workflow-plan.md` §4, once §3 above works in one manual cloud session.
+2. **Next:** a scheduled one-off task timed just after a reset, with the resume prompt of `docs/flow/workflow-plan.md` §5, once §3 above works in one manual cloud session.
 3. **Later:** a Project for a whole crate, if the beta is available on the account.
 
 Record each trial in `docs/flow/learning_flow.md`: what was run, what happened at the limit, tokens used, what had to be fixed.

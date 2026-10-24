@@ -53,7 +53,7 @@ hooks:
     - matcher: "Edit|Write"
       hooks:
         - type: command
-          command: "python3 docs/flow/hooks/deny_test_edits.py"  # not yet written
+          command: "python3 \"$CLAUDE_PROJECT_DIR\"/docs/flow/hooks/deny_test_edits.py"  # not yet written
 ---
 You implement one module. The implementation card in your prompt is your task. Test files are read-only for you:
 a test that looks wrong is reported to the orchestrator, never changed.
@@ -84,7 +84,7 @@ Read docs/parity/$crate/progress.md. It names the stage, the step and the brief 
 Read those sections, then continue the step. Before stopping, follow rules.md §7.2 and §7.6.
 ```
 
-Invoked as `/ferrum-phase view`. It replaces typing the resume prompt of `docs/flow/workflow-plan.md` §4; it adds nothing the prompt does not already say, so its value is convenience and fewer typing mistakes.
+Invoked as `/ferrum-phase view`. It replaces typing the resume prompt of `docs/flow/workflow-plan.md` §5; it adds nothing the prompt does not already say, so its value is convenience and fewer typing mistakes.
 
 ## 4. Hooks worth trying
 

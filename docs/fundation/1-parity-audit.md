@@ -137,13 +137,13 @@ For every item other cm6 packages use, grep those packages for the constants and
 
 ## 7. Shared harness
 
-The main session builds the harness once, in P0:
+The main session builds the harness once, in P0. First the sources: `python3 docs/parity/tools/fetch_mirrors.py --check`. A package the audit reads that the manifest does not list yet (a feature crate's package, a `lang-*` package its tests load) is pinned first, at the release the audit specifies: `python3 docs/parity/tools/fetch_mirrors.py --pin cm6/<package> refs/tags/<version>`; commit `docs/parity/tools/mirrors.json` before writing any deliverable that cites it (`docs/parity/tools/README.md`, section Mirrors). Then:
 
 ```sh
 python3 docs/parity/tools/harness/setup_cm6.py <package> [--npm <extra-package@version> …]
 ```
 
-It creates `.harness/<package>/` with the sources of the package and of every `@codemirror/*` package it depends on, their npm dependencies, TypeScript, and a `tsconfig.json` that maps `@codemirror/<name>` to those sources and `@harness/lib` to the shared helpers (`docs/parity/tools/harness/oracle-lib.ts`: seeded PRNG, exception capture, Rust-safe encoding, fixture writer). Extra packages (Lezer grammars, `w3c-keyname`) go after `--npm`. Record the versions from `harness.json` in `progress.md`.
+It creates `.harness/<package>/` with the sources of the package and of every `@codemirror/*` package it depends on, their npm dependencies, TypeScript, and a `tsconfig.json` that maps `@codemirror/<name>` to those sources and `@harness/lib` to the shared helpers (`docs/parity/tools/harness/oracle-lib.ts`: seeded PRNG, exception capture, Rust-safe encoding, fixture writer). Extra packages (Lezer grammars, `w3c-keyname`) go after `--npm`. Record in `progress.md` the mirror commits (`.mirror-commit` of each package) and the versions from `harness.json`.
 
 Every subagent uses the same harness and runs its own probes: `tsx --tsconfig .harness/<package>/tsconfig.json <probe>.ts`. Each writes only inside its own `oracle/cm6/<chunk>/` and `fixtures/<chunk>.jsonl`, so parallel subagents never conflict and no queue is needed. Subagents do not install packages or create other environments; a missing dependency is reported to the main session, which adds it to the harness.
 
