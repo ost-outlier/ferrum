@@ -41,6 +41,7 @@ Read this first when you follow a reference from any document under `docs/parity
 | merge question | `Q-merge-1` | `docs/parity/state/progress.md` | |
 | verification finding | finding 3, check 4a | `docs/parity/state/verification.md` | |
 | foundational decision | `D1`…`D10` | `docs/fundation/ferrum-foundation.md` §6 | evidence: `docs/parity/decisions-evidence.md`; decisions: `docs/parity/decisions.md` (not yet written) |
+| draft decision | `APPROACH`, `WORKSPACE`, `OBVIOUS-STATE`, and `D…`/`HD-…` entries | `docs/parity/decisions-draft.md` | proposals; they bind only once copied into `docs/parity/decisions.md` |
 | conformance gate | `G4` | `docs/fundation/3-conformance-audit.md` §3 | |
 | new-audit raw rows | `F0042` (fixture) | `docs/parity/<crate>/fixtures/<chunk>.jsonl` | schemas: `docs/fundation/1-parity-audit.md` §11 |
 
