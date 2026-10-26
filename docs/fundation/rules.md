@@ -1,10 +1,8 @@
 # Ferrum development rules
 
-These rules are binding for all work on Ferrum, by humans and AI agents, in every phase. They state what must be true of the work and of its result. *What* Ferrum is and why is in `ferrum-foundation.md`. *How* each phase is carried out (order of steps, deliverables, gates, who does what) is in the brief of the phase: specification audit (`1-parity-audit.md` with the scope sheets `1a`–`1d`), implementation (`2-parity-implementation.md`; `2a-implementation-state.md` for `ferrum-state`), conformance audit (`3-conformance-audit.md`).
-
 This file is loaded into every agent session through `AGENTS.md`. Keep it short: every line here costs context in every session, including every subagent.
 
-Source mirrors live in `mirrors/` inside the repository, which git ignores: cm6 in `mirrors/cm6/<package>/` (upstream `https://code.haverbeke.berlin/codemirror`), each package at the commit pinned in `docs/parity/tools/mirrors.json`; fetch or check them with `python3 docs/parity/tools/fetch_mirrors.py [--check]`. Zed (`mirrors/zed/`) and markdown-oxide (`mirrors/markdown-oxide/`) are listed but pinned only when a task needs them. Adding or pinning a mirror: `docs/parity/tools/README.md`, section Mirrors. A mirror is read-only: never edit it.
+Source mirrors live in `mirrors/` inside the repository, which git ignores: cm6 in `mirrors/cm6/<package>/`, each package at the commit pinned in `mirrors/mirrors.json`; Zed (`mirrors/zed/`) and markdown-oxide (`mirrors/markdown-oxide/`). A mirror is read-only: never edit it.
 
 ---
 
@@ -107,7 +105,7 @@ Deliverables, progress files, doc comments and commit messages are read later by
 
 1. **Paths** are relative to the repository root: `mirrors/cm6/state/src/text.ts`, `crates/ferrum-view/src/lib.rs`, `docs/parity/view/behaviors.md`. Never an absolute path, never a path relative to another directory, never `./`. The only thing outside the repository that a document may name is `../ferrum_strategic_architecture_vision.md` (a source of claims). Instruction documents may be named alone (`rules.md`): they live in `docs/fundation/`.
 2. **Nothing from the session environment** (`/tmp`, a scratchpad, a home directory) appears in a deliverable. A script a reader needs lives in the repository. <!-- refs:ignore -->
-3. **Symbols, not only lines.** A code reference gives the line, the symbol and the version: `mirrors/cm6/view/src/cursor.ts:102` (`byGroup`). Each file states once, in its header, the Ferrum commit its line numbers refer to; that commit also fixes the mirror commits (`docs/parity/tools/mirrors.json`). Give the cm6 package version too, as the manifest records it.
+3. **Symbols, not only lines.** A code reference gives the line, the symbol and the version: `mirrors/cm6/view/src/cursor.ts:102` (`byGroup`). Each file states once, in its header, the Ferrum commit its line numbers refer to; that commit also fixes the mirror commits (`mirrors/mirrors.json`). Give the cm6 package version too, as the manifest records it.
 4. **Ids name their file:** `docs/parity/view/behaviors.md#view.moveVertically.B3`. A short form is allowed only inside the file that defines the id. New id schemes are added to `docs/parity/README.md` before use.
 5. **Sections name their file:** `1-parity-audit.md` §11.1, never a bare `§11.1` outside the file it belongs to.
 6. **Write for grep.** Use identifiers and ids exactly as they appear in the target; never paraphrase a name. Point to a named file, section or id, never to the conversation or to "above" or "as discussed".

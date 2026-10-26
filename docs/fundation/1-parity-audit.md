@@ -137,7 +137,7 @@ For every item other cm6 packages use, grep those packages for the constants and
 
 ## 7. Shared harness
 
-The main session builds the harness once, in P0. First the sources: `python3 docs/parity/tools/fetch_mirrors.py --check`. A package the audit reads that the manifest does not list yet (a feature crate's package, a `lang-*` package its tests load) is pinned first, at the release the audit specifies: `python3 docs/parity/tools/fetch_mirrors.py --pin cm6/<package> refs/tags/<version>`; commit `docs/parity/tools/mirrors.json` before writing any deliverable that cites it (`docs/parity/tools/README.md`, section Mirrors). Then:
+The main session builds the harness once, in P0. First the sources: `python3 docs/parity/tools/fetch_mirrors.py --check`. A package the audit reads that the manifest does not list yet (a feature crate's package, a `lang-*` package its tests load) is pinned first, at the release the audit specifies: `python3 docs/parity/tools/fetch_mirrors.py --pin cm6/<package> refs/tags/<version>`; commit `mirrors/mirrors.json` before writing any deliverable that cites it (`docs/parity/tools/README.md`, section Mirrors). Then:
 
 ```sh
 python3 docs/parity/tools/harness/setup_cm6.py <package> [--npm <extra-package@version> …]

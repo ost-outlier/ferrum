@@ -1,6 +1,7 @@
 /target
 **/*.rs.bk
 Cargo.lock
-/mirrors/
+/mirrors/*
+!/mirrors/mirrors.json
 /.harness/
 decisions-draft.md

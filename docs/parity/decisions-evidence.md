@@ -1,6 +1,6 @@
 # Evidence for foundational decisions
 
-> What: evidence for foundational decisions D1–D10, all crates. Versions: cm6 mirror `mirrors/cm6/` (`@codemirror/state` 6.7.6, `@codemirror/view` 6.43.14 as `package.json` says, sources at `main` commit `d236c7c` (`docs/parity/tools/mirrors.json`), `@codemirror/language` 6.13.1, `@codemirror/commands` 6.11.1); Ferrum line numbers at commit `fb99ca1` (`crates/` unchanged through `ed70610`). Ids: id schemes and path rules in `docs/parity/README.md`.
+> What: evidence for foundational decisions D1–D10, all crates. Versions: cm6 mirror `mirrors/cm6/` (`@codemirror/state` 6.7.6, `@codemirror/view` 6.43.14 as `package.json` says, sources at `main` commit `d236c7c` (`mirrors/mirrors.json`), `@codemirror/language` 6.13.1, `@codemirror/commands` 6.11.1); Ferrum line numbers at commit `fb99ca1` (`crates/` unchanged through `ed70610`). Ids: id schemes and path rules in `docs/parity/README.md`.
 
 Collected by the parity audits (brief section 8). The audits do not decide; a human records decisions in `docs/parity/decisions.md` (not yet written). Each section gives the decision id, the items affected, concrete examples (`file:line`, run reproductions) and what each option implies. Full tables live in the raw notes cited per section.
 

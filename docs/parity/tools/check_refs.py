@@ -26,7 +26,7 @@ OLDCOPY = re.compile(r'(?<![\w/.@-])(?!docs/fundation/)((?:[\w.-]+/)+)(?:1-parit
 QID = re.compile(r'`((?:docs|mirrors)/[\w./-]+\.md)`[ #]((?:R|P|S|T|W)[\w-]*\d[\w-]*)')
 MIRRORS_SKIPPED = collections.Counter()
 import json
-_M = json.loads((W / 'docs/parity/tools/mirrors.json').read_text())['mirrors']
+_M = json.loads((W / 'mirrors/mirrors.json').read_text())['mirrors']
 def mirror_root(parts):  # mirrors/<repo>/... or mirrors/<set>/<member>/...
     n = 3 if _M.get(parts[1], {}).get('kind') == 'set' else 2
     return '/'.join(parts[:n]) if len(parts) >= n else None
@@ -73,7 +73,7 @@ def check(md, out):
             p = W / rel
             if PLANNED.match(rel): continue
             parts = rel.split('/')
-            if parts[0] == 'mirrors' and len(parts) > 1:
+            if parts[0] == 'mirrors' and len(parts) > 1 and rel != 'mirrors/mirrors.json':
                 root = mirror_root(parts)
                 if root and not (W / root / '.mirror-commit').exists():
                     MIRRORS_SKIPPED[root] += 1; continue

@@ -1,6 +1,6 @@
 # Cross-crate register (A5)
 
-> What: cross-crate register (A5), all crates. Versions: cm6 mirror `mirrors/cm6/` (`@codemirror/state` 6.7.6, `@codemirror/view` 6.43.14 as `package.json` says, sources at `main` commit `d236c7c` (`docs/parity/tools/mirrors.json`), `@codemirror/language` 6.13.1, `@codemirror/commands` 6.11.1); Ferrum line numbers at commit `fb99ca1` (`crates/` unchanged through `ed70610`). Ids: id schemes and path rules in `docs/parity/README.md`.
+> What: cross-crate register (A5), all crates. Versions: cm6 mirror `mirrors/cm6/` (`@codemirror/state` 6.7.6, `@codemirror/view` 6.43.14 as `package.json` says, sources at `main` commit `d236c7c` (`mirrors/mirrors.json`), `@codemirror/language` 6.13.1, `@codemirror/commands` 6.11.1); Ferrum line numbers at commit `fb99ca1` (`crates/` unchanged through `ed70610`). Ids: id schemes and path rules in `docs/parity/README.md`.
 
 Workspace-wide register of capabilities whose status depends on another crate (brief section 5, A5). One entry per capability. Written by the `ferrum-state` audit (crate 1 of 4); later audits add entries and update states.
 

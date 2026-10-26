@@ -11,7 +11,7 @@ anywhere (normally docs/parity/<crate>/oracle/cm6/<chunk>/) and run with
 Extra npm packages (Lezer grammars, w3c-keyname, ...) go after --npm.
 Default DIR: .harness/<package> at the repository root (gitignored; never referenced by deliverables).
 An @codemirror/* dependency missing from mirrors/cm6/ is installed from npm like a third-party package: add it to
-docs/parity/tools/mirrors.json first if its sources are part of the audit.
+mirrors/mirrors.json first if its sources are part of the audit.
 """
 import json, os, shutil, subprocess, sys, argparse
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), *['..'] * 4))

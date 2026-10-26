@@ -18,7 +18,7 @@ Run probes with `tsx --tsconfig .harness/<package>/tsconfig.json <probe>.ts`. Pr
 
 ## Mirrors
 
-Read-only copies of outside sources live in `mirrors/` (gitignored). What is fetched, from where and at which commit is versioned in `docs/parity/tools/mirrors.json`; `docs/parity/tools/fetch_mirrors.py` does the work. A fetched tree has no `.git` (no hooks can run from it) and records its commit in `.mirror-commit`.
+Read-only copies of outside sources live in `mirrors/` (gitignored). What is fetched, from where and at which commit is versioned in `mirrors/mirrors.json`; `docs/parity/tools/fetch_mirrors.py` does the work. A fetched tree has no `.git` (no hooks can run from it) and records its commit in `.mirror-commit`.
 
 | Task | Command |
 |---|---|
@@ -30,7 +30,7 @@ Read-only copies of outside sources live in `mirrors/` (gitignored). What is fet
 
 Pinning writes the commit into the manifest; commit the manifest in the same commit as the documents that cite the new version, so that a document's Ferrum commit always fixes the sources it cites (`rules.md` §8.3).
 
-**Adding a new mirror.** Add an entry under `mirrors` in `docs/parity/tools/mirrors.json`, with `"commit": null`, then pin it:
+**Adding a new mirror.** Add an entry under `mirrors` in `mirrors/mirrors.json`, with `"commit": null`, then pin it:
 
 - one repository: `{"kind": "repo", "url": "<git url>", "ref": "refs/heads/main", "commit": null, "license": ["MIT"]}`; documents cite it as `mirrors/<name>/<path>`;
 - a set of repositories under one URL pattern (as cm6, one repository per package): `{"kind": "set", "url": "https://host/org/{member}", "license": [...], "members": {"<member>": {"ref": "...", "commit": null}}}`; cited as `mirrors/<name>/<member>/<path>`;

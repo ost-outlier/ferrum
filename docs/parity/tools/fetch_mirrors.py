@@ -1,4 +1,4 @@
-"""Fetch, check and pin the source mirrors of docs/parity/tools/mirrors.json (into mirrors/, gitignored).
+"""Fetch, check and pin the source mirrors of mirrors/mirrors.json (into mirrors/, gitignored).
 
 Run from the repository root:
   python3 docs/parity/tools/fetch_mirrors.py [target ...]        fetch pinned targets (default: all pinned)
@@ -12,7 +12,7 @@ Pinning a member that a set does not list yet adds it. Fetched trees carry no .g
 """
 import json, pathlib, re, shutil, subprocess, sys, tempfile
 REPO = pathlib.Path(__file__).resolve().parents[3]
-MANIFEST = REPO / 'docs/parity/tools/mirrors.json'
+MANIFEST = REPO / 'mirrors/mirrors.json'
 data = json.loads(MANIFEST.read_text())
 M = data['mirrors']
 
@@ -45,7 +45,7 @@ def pin(name, ref=None):
     peeled = subprocess.run(['git', 'ls-remote', url, ref + '^{}'], capture_output=True, text=True).stdout.split()
     entry['ref'], entry['commit'] = ref, (peeled or out)[0]
     MANIFEST.write_text(json.dumps(data, indent=2, ensure_ascii=False) + '\n')
-    print(f'pinned   {name} {ref} -> {entry["commit"][:7]} (commit docs/parity/tools/mirrors.json)')
+    print(f'pinned   {name} {ref} -> {entry["commit"][:7]} (commit mirrors/mirrors.json)')
 
 def license_ok(tree, entry, mirror):
     if mirror.get('license_check') != 'cargo': return []

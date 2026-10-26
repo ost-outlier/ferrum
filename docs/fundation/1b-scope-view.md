@@ -2,7 +2,7 @@
 
 Use with `1-parity-audit.md` (specification audit for a new crate). Audit order: **2 of 4**. The view is rebuilt from cm6: the existing `crates/ferrum-view/` is not read, tested or described. One exception, section "Quarry from `ferrum-commands`" below: a few items that the old code placed in `ferrum-commands` but cm6 places in `@codemirror/view`.
 
-Versions: cm6 `@codemirror/view` at commit `d236c7c` (`docs/parity/tools/mirrors.json`: `main` after the 6.43.14 release, while `package.json` still says 6.43.14); Ferrum line numbers at commit `ed70610`.
+Versions: cm6 `@codemirror/view` at commit `d236c7c` (`mirrors/mirrors.json`: `main` after the 6.43.14 release, while `package.json` still says 6.43.14); Ferrum line numbers at commit `ed70610`.
 
 This is the audit where the purpose filter matters most. cm6's view is ~12,900 lines, most of it DOM. The goal is to separate what a native, headless view model must own (`CORE`), what it must ask a surface for (`CONTRACT`), what surfaces own (`SURFACE`) and what is irrelevant (`DROP`). Read `ferrum-foundation.md` §4 first: it has a preliminary file-by-file disposition, which you must verify per export and may overturn with evidence.
 

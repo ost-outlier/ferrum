@@ -6,7 +6,7 @@ Read this first when you follow a reference from any document under `docs/parity
 
 ## Paths
 
-- Every path is relative to the repository root: `mirrors/cm6/…` is the cm6 mirror (gitignored, pinned in `docs/parity/tools/mirrors.json`, fetched with `docs/parity/tools/fetch_mirrors.py`), everything else is the Ferrum repository. Example: `mirrors/cm6/state/src/text.ts:38`, `crates/ferrum-state/src/text.rs:97`.
+- Every path is relative to the repository root: `mirrors/cm6/…` is the cm6 mirror (gitignored, pinned in `mirrors/mirrors.json`, fetched with `docs/parity/tools/fetch_mirrors.py`), everything else is the Ferrum repository. Example: `mirrors/cm6/state/src/text.ts:38`, `crates/ferrum-state/src/text.rs:97`.
 - Instruction documents live only in `docs/fundation/` (`ferrum-foundation.md`, `rules.md`, the `1-…` audit briefs and scope sheets, the implementation briefs `2-parity-implementation.md` and `2a-implementation-state.md`, `3-conformance-audit.md`, and `LEARNINGS.md`, the history of the method). There are no copies elsewhere. Inside instruction documents, a bare file name (`rules.md`) means that folder.
 - `ferrum_strategic_architecture_vision.md` is not an instruction document: it lives outside the repository at `../ferrum_strategic_architecture_vision.md` and is a source of claims only (`docs/fundation/ferrum-foundation.md` §9).
 - `file:line` references carry the version they were written against in the document's reading header. When a line has drifted, find the symbol named next to it at that version (`git show <commit>:<path>`).
